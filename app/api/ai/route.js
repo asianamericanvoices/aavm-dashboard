@@ -1,7 +1,9 @@
 // API route for OpenAI integration
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request) {
+  console.log('GET request to:', request.url);
+  
   const hasApiKey = !!process.env.OPENAI_API_KEY;
   const keyPreview = process.env.OPENAI_API_KEY ? 
     process.env.OPENAI_API_KEY.substring(0, 7) + '...' : 'Not found';
@@ -9,11 +11,13 @@ export async function GET() {
   return NextResponse.json({ 
     message: 'AI API route is working!',
     hasApiKey,
-    keyPreview
+    keyPreview,
+    requestUrl: request.url
   });
 }
 
 export async function POST(request) {
+  console.log('POST request to:', request.url);
   console.log('POST request received');
   
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -43,7 +47,6 @@ Guidelines:
 - Include relevant context for Asian American readers when applicable
 - Use proper news writing structure (lead, body, conclusion)
 - Write in third person
-- Include important quotes if mentioned in the source
 
 Article Title: ${title}
 Content: ${content || title}
@@ -96,16 +99,14 @@ Write a professional news summary:`;
 
       let prompt = '';
       if (language === 'chinese') {
-        prompt = `Translate the following English news summary into simplified Chinese. Maintain the journalistic tone, accuracy of information, and ensure the translation is natural and appropriate for Chinese-speaking readers.
+        prompt = `Translate the following English news summary into simplified Chinese. Maintain the journalistic tone and accuracy:
 
-English Summary:
 ${summary}
 
 Chinese Translation:`;
       } else if (language === 'korean') {
-        prompt = `Translate the following English news summary into Korean. Maintain the journalistic tone, accuracy of information, and ensure the translation is natural and appropriate for Korean-speaking readers.
+        prompt = `Translate the following English news summary into Korean. Maintain the journalistic tone and accuracy:
 
-English Summary:
 ${summary}
 
 Korean Translation:`;
