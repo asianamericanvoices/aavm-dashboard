@@ -475,18 +475,26 @@ export default function AAVMDashboard() {
                               onChange={(e) => handleEditSummary(article.id, e.target.value.replace(/\n/g, '<br>'))}
                               className="w-full p-2 border border-gray-300 rounded resize-none"
                               rows="6"
+                              autoFocus
+                              onFocus={(e) => e.target.setSelectionRange(e.target.value.length, e.target.value.length)}
                             />
                             <div className="flex gap-2 mt-2">
                               <button 
-                                onClick={() => handleApproveSummary(article.id)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleApproveSummary(article.id);
+                                }}
                                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                               >
                                 Approve Summary
                               </button>
                               <button 
-                                onClick={() => setArticles(prev => prev.map(a => 
-                                  a.id === article.id ? {...a, editingSummary: false} : a
-                                ))}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setArticles(prev => prev.map(a => 
+                                    a.id === article.id ? {...a, editingSummary: false} : a
+                                  ));
+                                }}
                                 className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
                               >
                                 Cancel
@@ -519,9 +527,12 @@ export default function AAVMDashboard() {
                               )}
                               {article.status === 'summary_review' && (
                                 <button 
-                                  onClick={() => setArticles(prev => prev.map(a => 
-                                    a.id === article.id ? {...a, editingSummary: true} : a
-                                  ))}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingSummary: true} : a
+                                    ));
+                                  }}
                                   className="text-purple-600 hover:text-purple-800 font-medium text-xs"
                                 >
                                   Edit Summary
@@ -566,12 +577,17 @@ export default function AAVMDashboard() {
                               onChange={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
+                              autoFocus
+                              onFocus={(e) => e.target.setSelectionRange(e.target.value.length, e.target.value.length)}
                             />
                             <div className="flex gap-2 mt-1">
                               <button 
-                                onClick={() => setArticles(prev => prev.map(a => 
-                                  a.id === article.id ? {...a, editingChinese: false} : a
-                                ))}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setArticles(prev => prev.map(a => 
+                                    a.id === article.id ? {...a, editingChinese: false} : a
+                                  ));
+                                }}
                                 className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                               >
                                 Save
@@ -602,9 +618,12 @@ export default function AAVMDashboard() {
                               )}
                               {article.status === 'translation_review' && (
                                 <button 
-                                  onClick={() => setArticles(prev => prev.map(a => 
-                                    a.id === article.id ? {...a, editingChinese: true} : a
-                                  ))}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingChinese: true} : a
+                                    ));
+                                  }}
                                   className="text-purple-600 hover:text-purple-800 font-medium text-xs"
                                 >
                                   Edit
@@ -625,12 +644,17 @@ export default function AAVMDashboard() {
                               onChange={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
+                              autoFocus
+                              onFocus={(e) => e.target.setSelectionRange(e.target.value.length, e.target.value.length)}
                             />
                             <div className="flex gap-2 mt-1">
                               <button 
-                                onClick={() => setArticles(prev => prev.map(a => 
-                                  a.id === article.id ? {...a, editingKorean: false} : a
-                                ))}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setArticles(prev => prev.map(a => 
+                                    a.id === article.id ? {...a, editingKorean: false} : a
+                                  ));
+                                }}
                                 className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                               >
                                 Save
@@ -661,9 +685,12 @@ export default function AAVMDashboard() {
                               )}
                               {article.status === 'translation_review' && (
                                 <button 
-                                  onClick={() => setArticles(prev => prev.map(a => 
-                                    a.id === article.id ? {...a, editingKorean: true} : a
-                                  ))}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingKorean: true} : a
+                                    ));
+                                  }}
                                   className="text-purple-600 hover:text-purple-800 font-medium text-xs"
                                 >
                                   Edit
