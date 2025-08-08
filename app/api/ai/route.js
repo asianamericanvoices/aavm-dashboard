@@ -1,4 +1,4 @@
-// API route for OpenAI integration - Updated with title regeneration
+// API route for OpenAI integration - Updated with title generation and enhanced content validation
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -129,45 +129,152 @@ Generate ONE punchy headline that's better than the original:`;
       });
     }
 
+    if (action === 'translate_title') {
+      console.log('Starting title translation to:', language);
+      
+      if (!title || title.trim().length === 0) {
+        return NextResponse.json({ 
+          error: 'No title provided for translation.' 
+        }, { status: 400 });
+      }
+
+      if (!['chinese', 'korean'].includes(language)) {
+        return NextResponse.json({ 
+          error: 'Invalid language. Supported languages: chinese, korean' 
+        }, { status: 400 });
+      }
+
+      let systemPrompt = '';
+      let userPrompt = '';
+
+      if (language === 'chinese') {
+        systemPrompt = 'You are a professional translator specializing in news headlines for Chinese-speaking audiences. Translate headlines accurately while maintaining the punchy, engaging tone. Keep the translation concise and impactful.';
+        userPrompt = `Translate this English news headline into simplified Chinese. Maintain the engaging, punchy tone and ensure the translation is natural and appropriate for Chinese readers:
+
+"${title}"
+
+Provide only the Chinese translation:`;
+      } else if (language === 'korean') {
+        systemPrompt = 'You are a professional translator specializing in news headlines for Korean-speaking audiences. Translate headlines accurately while maintaining the punchy, engaging tone. Keep the translation concise and impactful.';
+        userPrompt = `Translate this English news headline into Korean. Maintain the engaging, punchy tone and ensure the translation is natural and appropriate for Korean readers:
+
+"${title}"
+
+Provide only the Korean translation:`;
+      }
+
+      console.log('Sending title translation request to OpenAI...');
+
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: userPrompt
+            }
+          ],
+          max_tokens: 100,
+          temperature: 0.1,
+          top_p: 1,
+          frequency_penalty: 0,
+          presence_penalty: 0
+        }),
+      });
+
+      console.log('OpenAI title translation response status:', openaiResponse.status);
+
+      if (!openaiResponse.ok) {
+        const errorText = await openaiResponse.text();
+        console.error('OpenAI title translation error:', errorText);
+        
+        let errorMessage = 'Title translation API request failed';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch (e) {
+          // Use default message
+        }
+        
+        return NextResponse.json({ 
+          error: `Title translation failed: ${errorMessage}`,
+          details: errorText
+        }, { status: 500 });
+      }
+
+      const data = await openaiResponse.json();
+      const translation = data.choices?.[0]?.message?.content?.trim();
+      
+      if (!translation) {
+        console.error('No title translation content returned:', JSON.stringify(data, null, 2));
+        return NextResponse.json({ 
+          error: 'No title translation content returned from OpenAI' 
+        }, { status: 500 });
+      }
+
+      // Clean up the translation (remove quotes if AI added them)
+      const cleanTranslation = translation.replace(/^["']|["']$/g, '').trim();
+
+      console.log(`Title translation to ${language} completed successfully:`, cleanTranslation);
+      
+      return NextResponse.json({ 
+        result: cleanTranslation,
+        usage: data.usage
+      });
+    }
+
     if (action === 'summarize') {
       console.log('Starting summarization for:', title);
       
+      // Check if we have actual article content
+      if (!content || content.trim().length < 50) {
+        return NextResponse.json({ 
+          error: 'Insufficient article content provided. Cannot generate summary without the full article text.' 
+        }, { status: 400 });
+      }
+      
       const prompt = `You are a professional journalist writing for Asian American Voices Media. 
 
-Write a comprehensive, objective news summary of 300-400 words that reports the news events and developments described in this article. Focus on WHAT happened, WHO was involved, WHEN it occurred, WHERE it took place, and WHY it matters.
+You are provided with the FULL TEXT of a news article below. Write a comprehensive, objective news summary of 300-400 words that reports ONLY the events and information explicitly stated in this article.
 
-STRICT REQUIREMENTS:
-- NEVER fabricate, hallucinate, or create quotes that don't exist in the source material
+CRITICAL REQUIREMENTS - JOURNALISTIC INTEGRITY:
+- NEVER fabricate, hallucinate, or create ANY quotes that don't exist in the source material
 - NEVER add information not present in the original article
 - NEVER create composite quotes or paraphrase quotes as direct quotes
-- ONLY use direct quotes that appear verbatim in the source material
+- ONLY use direct quotes that appear VERBATIM in the source material provided below
+- If no quotes exist in the source, do NOT include any quotes
 - When paraphrasing, make it clear it's paraphrasing, not a direct quote
-- Include proper attribution for all claims and information
-- Report the news events, not analyze the article itself
-- Focus on the actual developments, decisions, actions, and statements reported
-- Use proper source attribution (e.g., "Reuters reports," "According to ${source || 'the source'}," "${source || 'The source'} reported")
-- NEVER refer to "the article" - always cite the actual news source by name
-- Format with natural paragraph breaks for readability (2-3 paragraphs)
-- End with substantive news content, NOT meta-commentary about the story or its implications
-- Do not include concluding sentences that sound like analysis or book reports
+- Every fact, figure, name, date, and claim MUST be directly traceable to the source text
+- If the source article is incomplete or truncated, state that clearly
 
-Title: ${title}
-Source: This article is from ${source || 'the original source'}
-Content: ${content}
+Source: ${source || 'the original source'}
+Article Title: ${title}
+
+FULL ARTICLE TEXT:
+${content}
 
 Requirements:
-- Write in clear, professional journalism style reporting the news events
-- Focus on facts explicitly stated in the source material about what happened
+- Write in clear, professional journalism style reporting ONLY the news events described in the source
+- Focus ONLY on facts explicitly stated in the source material above
 - Maintain complete objectivity with no editorial bias
-- Include direct quotes from the article when available, using quotation marks
+- Include direct quotes from the article ONLY if they appear verbatim in the source text above
 - Attribute all information to the news source (e.g., "${source || 'The source'} reported," "According to ${source || 'the source'}")
-- Include relevant context for Asian American readers when the article provides such context
 - Use third person throughout
 - Structure with 2-3 clear paragraphs with natural breaks
-- Lead paragraph: main news event
-- Supporting paragraphs: key details, quotes, context
-- End with concrete facts or developments, not analysis
+- Lead paragraph: main news event as reported in the source
+- Supporting paragraphs: key details, quotes (if any exist), context from the source
+- End with concrete facts or developments from the source, not analysis
 - Always reference the news source by name, never as "the article"
+- If the article appears incomplete or cut off, mention this limitation
 
 Write the news summary now with proper paragraph formatting:`;
 
@@ -258,14 +365,17 @@ CRITICAL REQUIREMENTS - NO EXCEPTIONS:
 - Absolutely NO text, words, letters, numbers, signs, or any written content visible anywhere in the image
 - NO newspapers, documents, books, screens with text, or any readable materials
 - NO street signs, building signs, or any signage with text
-- Focus on abstract concepts, natural scenes, objects, or symbolic elements
+- NO weighing scales, balance scales, or justice-related imagery (avoid legal/court symbolism)
+- NO dollar signs, currency symbols, or financial symbols
+- Focus on natural scenes, people in action, buildings, technology, or abstract concepts
 - Photorealistic, high-quality photography style
 - NO recognizable faces of real people or celebrities
 - Clean, modern composition suitable for news media
 - Professional lighting and composition
 - Suitable for Asian American Voices Media publication
+- Think: landscapes, cityscapes, business environments, technology, healthcare settings, but NEVER include scales, legal symbols, or any form of readable text
 
-Create a visual representation of the themes without any textual elements whatsoever. Think: landscapes, objects, abstract concepts, architecture, but never include any form of readable text or writing.`;
+Create a visual representation that captures the essence of the news story through real-world scenes and objects, avoiding overused legal/financial symbolism.`;
 
       console.log('Sending image generation request to OpenAI...');
 
@@ -350,17 +460,21 @@ Create a visual representation of the themes without any textual elements whatso
       let userPrompt = '';
 
       if (language === 'chinese') {
-        systemPrompt = 'You are a professional translator specializing in news content for Chinese-speaking audiences. Translate accurately while maintaining the journalistic tone, preserving all attributions and quotes exactly as they appear in the original text. Do not add, omit, or modify any factual content.';
-        userPrompt = `Translate this English news summary into simplified Chinese. Maintain the professional journalistic tone, preserve all quotes and attributions exactly, and ensure the translation is natural and appropriate for Chinese readers. Do not add any information not present in the original:
+        systemPrompt = 'You are a professional translator specializing in news content for Chinese-speaking audiences. Translate accurately while maintaining the journalistic tone, preserving all attributions and quotes exactly as they appear in the original text. Maintain paragraph breaks for readability. Do not add, omit, or modify any factual content.';
+        userPrompt = `Translate this English news summary into simplified Chinese. Maintain the professional journalistic tone, preserve all quotes and attributions exactly, maintain paragraph breaks, and ensure the translation is natural and appropriate for Chinese readers. Do not add any information not present in the original:
 
 ${summary}
+
+Important: Preserve paragraph structure by including double line breaks between paragraphs in your translation.
 
 Provide only the Chinese translation:`;
       } else if (language === 'korean') {
-        systemPrompt = 'You are a professional translator specializing in news content for Korean-speaking audiences. Translate accurately while maintaining the journalistic tone, preserving all attributions and quotes exactly as they appear in the original text. Do not add, omit, or modify any factual content.';
-        userPrompt = `Translate this English news summary into Korean. Maintain the professional journalistic tone, preserve all quotes and attributions exactly, and ensure the translation is natural and appropriate for Korean readers. Do not add any information not present in the original:
+        systemPrompt = 'You are a professional translator specializing in news content for Korean-speaking audiences. Translate accurately while maintaining the journalistic tone, preserving all attributions and quotes exactly as they appear in the original text. Maintain paragraph breaks for readability. Do not add, omit, or modify any factual content.';
+        userPrompt = `Translate this English news summary into Korean. Maintain the professional journalistic tone, preserve all quotes and attributions exactly, maintain paragraph breaks, and ensure the translation is natural and appropriate for Korean readers. Do not add any information not present in the original:
 
 ${summary}
+
+Important: Preserve paragraph structure by including double line breaks between paragraphs in your translation.
 
 Provide only the Korean translation:`;
       }
@@ -432,7 +546,7 @@ Provide only the Korean translation:`;
     }
 
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, summarize, translate, generate_image' 
+      error: 'Invalid action. Supported actions: generate_title, summarize, translate, translate_title, generate_image' 
     }, { status: 400 });
 
   } catch (error) {
