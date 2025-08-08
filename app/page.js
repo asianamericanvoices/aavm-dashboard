@@ -485,16 +485,14 @@ export default function AAVMDashboard() {
                             />
                             <div className="flex gap-2 mt-2">
                               <button 
-                                onClick={(e) => {
-                                  e.preventDefault();
+                                onClick={() => {
+                                  console.log('APPROVE BUTTON CLICKED!', article.id);
                                   const textarea = document.getElementById(`summary-edit-${article.id}`);
-                                  console.log('Approve button clicked, textarea found:', !!textarea);
+                                  console.log('Textarea found:', !!textarea);
                                   if (textarea) {
                                     console.log('Textarea value:', textarea.value);
                                     handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
                                     handleApproveSummary(article.id);
-                                  } else {
-                                    console.error('Could not find textarea for article:', article.id);
                                   }
                                 }}
                                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
@@ -502,9 +500,8 @@ export default function AAVMDashboard() {
                                 Approve Summary
                               </button>
                               <button 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  console.log('Cancel button clicked for article:', article.id);
+                                onClick={() => {
+                                  console.log('CANCEL BUTTON CLICKED!', article.id);
                                   setArticles(prev => prev.map(a => 
                                     a.id === article.id ? {...a, editingSummary: false} : a
                                   ));
