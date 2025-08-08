@@ -656,6 +656,23 @@ export default function AAVMDashboard() {
                                   Edit
                                 </button>
                               )}
+                              {article.translations.chinese && article.translations.chinese !== 'Translating...' && (
+                                <button 
+                                  onClick={() => {
+                                    // Force save any edits before re-translating
+                                    if (article.editingSummary) {
+                                      const textarea = document.getElementById(`summary-edit-${article.id}`);
+                                      if (textarea) {
+                                        handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                                      }
+                                    }
+                                    handleTranslateArticle(article.id, 'chinese');
+                                  }}
+                                  className="text-orange-600 hover:text-orange-800 font-medium text-xs"
+                                >
+                                  Regenerate
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -724,6 +741,23 @@ export default function AAVMDashboard() {
                                   className="text-purple-600 hover:text-purple-800 font-medium text-xs"
                                 >
                                   Edit
+                                </button>
+                              )}
+                              {article.translations.korean && article.translations.korean !== 'Translating...' && (
+                                <button 
+                                  onClick={() => {
+                                    // Force save any edits before re-translating
+                                    if (article.editingSummary) {
+                                      const textarea = document.getElementById(`summary-edit-${article.id}`);
+                                      if (textarea) {
+                                        handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                                      }
+                                    }
+                                    handleTranslateArticle(article.id, 'korean');
+                                  }}
+                                  className="text-orange-600 hover:text-orange-800 font-medium text-xs"
+                                >
+                                  Regenerate
                                 </button>
                               )}
                             </div>
