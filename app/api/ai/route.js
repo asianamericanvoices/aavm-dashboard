@@ -51,7 +51,9 @@ STRICT REQUIREMENTS:
 - Focus on the actual developments, decisions, actions, and statements reported
 - Use proper source attribution (e.g., "Reuters reports," "According to ${source || 'the source'}," "${source || 'The source'} reported")
 - NEVER refer to "the article" - always cite the actual news source by name
-- If the article lacks sufficient detail, note that rather than filling gaps with assumptions
+- Format with natural paragraph breaks for readability (2-3 paragraphs)
+- End with substantive news content, NOT meta-commentary about the story or its implications
+- Do not include concluding sentences that sound like analysis or book reports
 
 Title: ${title}
 Source: This article is from ${source || 'the original source'}
@@ -65,11 +67,13 @@ Requirements:
 - Attribute all information to the news source (e.g., "${source || 'The source'} reported," "According to ${source || 'the source'}")
 - Include relevant context for Asian American readers when the article provides such context
 - Use third person throughout
-- Structure with clear lead paragraph about the main news event, followed by supporting details
-- Report developments, decisions, actions, and statements - not observations about the article
+- Structure with 2-3 clear paragraphs with natural breaks
+- Lead paragraph: main news event
+- Supporting paragraphs: key details, quotes, context
+- End with concrete facts or developments, not analysis
 - Always reference the news source by name, never as "the article"
 
-Write the news summary now, focusing on the events and developments reported by ${source || 'the source'}:`;
+Write the news summary now with proper paragraph formatting:`;
 
       console.log('Sending request to OpenAI API...');
 
@@ -84,7 +88,7 @@ Write the news summary now, focusing on the events and developments reported by 
           messages: [
             {
               role: 'system',
-              content: `You are a professional journalist reporting news events. Write news summaries that focus on WHAT happened, WHO was involved, WHEN and WHERE events occurred, and specific developments reported in the source. Always attribute information to the specific news source (${source || 'the source'}) and never refer to "the article." Report the news events the source describes, not analysis of the source itself. You NEVER fabricate quotes, add information not in the source, or create composite statements. Every piece of information must be traceable to the source material provided.`
+              content: `You are a professional journalist reporting news events. Write news summaries that focus on WHAT happened, WHO was involved, WHEN and WHERE events occurred, and specific developments reported in the source. Always attribute information to the specific news source (${source || 'the source'}) and never refer to "the article." Format with natural paragraph breaks (2-3 paragraphs). End with concrete facts or developments, NOT analysis or meta-commentary about the story's implications. Report the news events the source describes, not analysis of the source itself. You NEVER fabricate quotes, add information not in the source, or create composite statements. Every piece of information must be traceable to the source material provided.`
             },
             {
               role: 'user',
