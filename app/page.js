@@ -471,8 +471,8 @@ export default function AAVMDashboard() {
                         {article.editingSummary ? (
                           <div className="mt-2">
                             <textarea
-                              value={article.aiSummary}
-                              onChange={(e) => handleEditSummary(article.id, e.target.value)}
+                              defaultValue={article.aiSummary.replace(/<br>/g, '\n')}
+                              onBlur={(e) => handleEditSummary(article.id, e.target.value.replace(/\n/g, '<br>'))}
                               className="w-full p-2 border border-gray-300 rounded resize-none"
                               rows="6"
                               autoFocus
@@ -481,6 +481,8 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
+                                  const textarea = e.target.closest('div').previousElementSibling;
+                                  handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
                                   handleApproveSummary(article.id);
                                 }}
                                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
@@ -572,8 +574,8 @@ export default function AAVMDashboard() {
                         {article.editingChinese ? (
                           <div>
                             <textarea
-                              value={article.translations.chinese}
-                              onChange={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
+                              defaultValue={article.translations.chinese}
+                              onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
                               autoFocus
@@ -582,6 +584,8 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
+                                  const textarea = e.target.closest('div').previousElementSibling;
+                                  handleEditTranslation(article.id, 'chinese', textarea.value);
                                   setArticles(prev => prev.map(a => 
                                     a.id === article.id ? {...a, editingChinese: false} : a
                                   ));
@@ -638,8 +642,8 @@ export default function AAVMDashboard() {
                         {article.editingKorean ? (
                           <div>
                             <textarea
-                              value={article.translations.korean}
-                              onChange={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
+                              defaultValue={article.translations.korean}
+                              onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
                               autoFocus
@@ -648,6 +652,8 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
+                                  const textarea = e.target.closest('div').previousElementSibling;
+                                  handleEditTranslation(article.id, 'korean', textarea.value);
                                   setArticles(prev => prev.map(a => 
                                     a.id === article.id ? {...a, editingKorean: false} : a
                                   ));
