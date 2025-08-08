@@ -1,4 +1,4 @@
-// API route for OpenAI integration - Updated format
+// API route for OpenAI integration - Updated with enhanced journalism standards
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -38,20 +38,32 @@ export async function POST(request) {
       
       const prompt = `You are a professional journalist writing for Asian American Voices Media. 
 
-Write a comprehensive, objective news summary of 300-400 words based on this article:
+Write a comprehensive, objective news summary of 300-400 words based STRICTLY on the information provided in this article. You must follow these critical journalism standards:
+
+STRICT REQUIREMENTS:
+- NEVER fabricate, hallucinate, or create quotes that don't exist in the source material
+- NEVER add information not present in the original article
+- NEVER create composite quotes or paraphrase quotes as direct quotes
+- ONLY use direct quotes that appear verbatim in the source material
+- When paraphrasing, make it clear it's paraphrasing, not a direct quote
+- Include proper attribution for all claims and information
+- If the article lacks sufficient detail, note that rather than filling gaps with assumptions
 
 Title: ${title}
-Content: ${content || 'Limited content available - please expand based on the title and context.'}
+Content: ${content}
 
 Requirements:
 - Write in clear, professional journalism style
-- Focus on facts and key developments
+- Focus on facts explicitly stated in the source material
 - Maintain complete objectivity with no editorial bias
-- Include relevant context for Asian American readers when applicable
+- Include direct quotes from the article when available, using quotation marks
+- Attribute all information to sources mentioned in the article
+- Include relevant context for Asian American readers when the article provides such context
 - Use third person throughout
-- Structure with clear lead paragraph followed by supporting details
+- Structure with clear lead paragraph followed by supporting details from the article
+- If information is limited, acknowledge that rather than speculating
 
-Write the summary now:`;
+Write the summary now, ensuring every fact comes directly from the provided source material:`;
 
       console.log('Sending request to OpenAI API...');
 
@@ -66,7 +78,7 @@ Write the summary now:`;
           messages: [
             {
               role: 'system',
-              content: 'You are a professional journalist. Write objective, factual news summaries in a clear, engaging style appropriate for Asian American Voices Media.'
+              content: 'You are a professional journalist committed to accuracy and truth. You NEVER fabricate quotes, add information not in the source, or create composite statements. Every piece of information in your summary must be traceable to the source material provided. When in doubt, indicate limited information rather than filling gaps.'
             },
             {
               role: 'user',
@@ -74,7 +86,7 @@ Write the summary now:`;
             }
           ],
           max_tokens: 800,
-          temperature: 0.2,
+          temperature: 0.1, // Lower temperature for more factual, less creative output
           top_p: 1,
           frequency_penalty: 0,
           presence_penalty: 0
@@ -140,15 +152,15 @@ Write the summary now:`;
       let userPrompt = '';
 
       if (language === 'chinese') {
-        systemPrompt = 'You are a professional translator specializing in news content for Chinese-speaking audiences. Translate accurately while maintaining the journalistic tone and cultural appropriateness.';
-        userPrompt = `Translate this English news summary into simplified Chinese. Maintain the professional journalistic tone and ensure the translation is natural and appropriate for Chinese readers:
+        systemPrompt = 'You are a professional translator specializing in news content for Chinese-speaking audiences. Translate accurately while maintaining the journalistic tone, preserving all attributions and quotes exactly as they appear in the original text. Do not add, omit, or modify any factual content.';
+        userPrompt = `Translate this English news summary into simplified Chinese. Maintain the professional journalistic tone, preserve all quotes and attributions exactly, and ensure the translation is natural and appropriate for Chinese readers. Do not add any information not present in the original:
 
 ${summary}
 
 Provide only the Chinese translation:`;
       } else if (language === 'korean') {
-        systemPrompt = 'You are a professional translator specializing in news content for Korean-speaking audiences. Translate accurately while maintaining the journalistic tone and cultural appropriateness.';
-        userPrompt = `Translate this English news summary into Korean. Maintain the professional journalistic tone and ensure the translation is natural and appropriate for Korean readers:
+        systemPrompt = 'You are a professional translator specializing in news content for Korean-speaking audiences. Translate accurately while maintaining the journalistic tone, preserving all attributions and quotes exactly as they appear in the original text. Do not add, omit, or modify any factual content.';
+        userPrompt = `Translate this English news summary into Korean. Maintain the professional journalistic tone, preserve all quotes and attributions exactly, and ensure the translation is natural and appropriate for Korean readers. Do not add any information not present in the original:
 
 ${summary}
 
@@ -176,7 +188,7 @@ Provide only the Korean translation:`;
             }
           ],
           max_tokens: 1000,
-          temperature: 0.1,
+          temperature: 0.1, // Low temperature for accurate translation
           top_p: 1,
           frequency_penalty: 0,
           presence_penalty: 0
