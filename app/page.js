@@ -476,6 +476,7 @@ export default function AAVMDashboard() {
                         {article.editingSummary ? (
                           <div className="mt-2">
                             <textarea
+                              id={`summary-edit-${article.id}`}
                               defaultValue={article.aiSummary.replace(/<br>/g, '\n')}
                               onBlur={(e) => handleEditSummary(article.id, e.target.value.replace(/\n/g, '<br>'))}
                               className="w-full p-2 border border-gray-300 rounded resize-none"
@@ -486,11 +487,15 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const textarea = e.target.parentNode.previousElementSibling;
-                                  console.log('Approving summary, textarea value:', textarea.value);
-                                  handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
-                                  handleApproveSummary(article.id);
-                                  console.log('Summary approved for article:', article.id);
+                                  const textarea = document.getElementById(`summary-edit-${article.id}`);
+                                  console.log('Approve button clicked, textarea found:', !!textarea);
+                                  if (textarea) {
+                                    console.log('Textarea value:', textarea.value);
+                                    handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                                    handleApproveSummary(article.id);
+                                  } else {
+                                    console.error('Could not find textarea for article:', article.id);
+                                  }
                                 }}
                                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                               >
@@ -582,6 +587,7 @@ export default function AAVMDashboard() {
                         {article.editingChinese ? (
                           <div>
                             <textarea
+                              id={`chinese-edit-${article.id}`}
                               defaultValue={article.translations.chinese}
                               onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
@@ -592,11 +598,13 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const textarea = e.target.parentNode.previousElementSibling;
-                                  handleEditTranslation(article.id, 'chinese', textarea.value);
-                                  setArticles(prev => prev.map(a => 
-                                    a.id === article.id ? {...a, editingChinese: false} : a
-                                  ));
+                                  const textarea = document.getElementById(`chinese-edit-${article.id}`);
+                                  if (textarea) {
+                                    handleEditTranslation(article.id, 'chinese', textarea.value);
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingChinese: false} : a
+                                    ));
+                                  }
                                 }}
                                 className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                               >
@@ -650,6 +658,7 @@ export default function AAVMDashboard() {
                         {article.editingKorean ? (
                           <div>
                             <textarea
+                              id={`korean-edit-${article.id}`}
                               defaultValue={article.translations.korean}
                               onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
@@ -660,11 +669,13 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const textarea = e.target.parentNode.previousElementSibling;
-                                  handleEditTranslation(article.id, 'korean', textarea.value);
-                                  setArticles(prev => prev.map(a => 
-                                    a.id === article.id ? {...a, editingKorean: false} : a
-                                  ));
+                                  const textarea = document.getElementById(`korean-edit-${article.id}`);
+                                  if (textarea) {
+                                    handleEditTranslation(article.id, 'korean', textarea.value);
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingKorean: false} : a
+                                    ));
+                                  }
                                 }}
                                 className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                               >
