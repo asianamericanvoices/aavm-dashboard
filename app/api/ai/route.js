@@ -1,4 +1,4 @@
-// API route for OpenAI integration - Updated with source attribution and image generation
+// API route for OpenAI integration - Updated with title regeneration
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -32,6 +32,102 @@ export async function POST(request) {
     console.log('Request body received:', JSON.stringify(body, null, 2));
     
     const { action, title, content, language, summary, source } = body;
+
+    if (action === 'generate_title') {
+      console.log('Starting title generation for:', title);
+      
+      const prompt = `You are a skilled headline writer for Asian American Voices Media, creating engaging, punchy headlines that capture reader attention while maintaining journalistic integrity.
+
+Given this original headline: "${title}"
+From source: ${source || 'the original source'}
+
+Create a more engaging, punchy headline that:
+- Is 8-15 words maximum
+- Captures the essence of the story better than the original
+- Uses active voice and strong verbs
+- Avoids clickbait but creates genuine interest
+- Is appropriate for Asian American Voices Media's audience
+- Focuses on the human impact or key development
+- Removes unnecessary words like "according to reports" or publication names
+- Makes the story feel immediate and relevant
+
+Examples of good transformations:
+"Company Reports Q3 Earnings Beat Expectations" → "Tech Giant Crushes Profit Targets"
+"Study Shows Increase in Remote Work Adoption" → "Remote Work Revolution Transforms American Workplace"
+"Officials Announce New Policy Changes" → "Major Policy Shift Reshapes Immigration Rules"
+
+Generate ONE punchy headline that's better than the original:`;
+
+      console.log('Sending title generation request to OpenAI API...');
+
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert headline writer who creates punchy, engaging headlines that are 8-15 words maximum. Focus on active voice, strong verbs, and human impact. Avoid clickbait but create genuine interest. Return ONLY the new headline, nothing else.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: 50,
+          temperature: 0.7,
+          top_p: 1,
+          frequency_penalty: 0.3,
+          presence_penalty: 0.3
+        }),
+      });
+
+      console.log('OpenAI title response status:', openaiResponse.status);
+
+      if (!openaiResponse.ok) {
+        const errorText = await openaiResponse.text();
+        console.error('OpenAI API error response:', errorText);
+        
+        let errorMessage = 'OpenAI API request failed';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch (e) {
+          // Use default message if can't parse error
+        }
+        
+        return NextResponse.json({ 
+          error: `Title generation failed: ${errorMessage}`,
+          details: errorText
+        }, { status: 500 });
+      }
+
+      const data = await openaiResponse.json();
+      console.log('OpenAI title response received successfully');
+      
+      const newTitle = data.choices?.[0]?.message?.content?.trim();
+      
+      if (!newTitle) {
+        console.error('No title content in OpenAI response:', JSON.stringify(data, null, 2));
+        return NextResponse.json({ 
+          error: 'No title content returned from OpenAI' 
+        }, { status: 500 });
+      }
+
+      // Clean up the title (remove quotes if AI added them)
+      const cleanTitle = newTitle.replace(/^["']|["']$/g, '').trim();
+
+      console.log('Title generated successfully:', cleanTitle);
+      
+      return NextResponse.json({ 
+        result: cleanTitle,
+        usage: data.usage
+      });
+    }
 
     if (action === 'summarize') {
       console.log('Starting summarization for:', title);
@@ -336,7 +432,7 @@ Provide only the Korean translation:`;
     }
 
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: summarize, translate, generate_image' 
+      error: 'Invalid action. Supported actions: generate_title, summarize, translate, generate_image' 
     }, { status: 400 });
 
   } catch (error) {
