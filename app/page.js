@@ -1,8 +1,4 @@
-<div className="border-t pt-3 mt-3">
-                <div className="flex gap-2 flex-wrap">
-                  {/* Step 1: Generate Summary */}
-                  {article.status === 'pending_synthesis' && (
-                    <button 'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings } from 'lucide-react';
@@ -140,14 +136,6 @@ export default function AAVMDashboard() {
     }
   };
 
-  const handleApproveForTranslation = (articleId) => {
-    setArticles(prev => prev.map(article => 
-      article.id === articleId 
-        ? { ...article, status: 'in_translation' }
-        : article
-    ));
-  };
-
   const handleGenerateSummary = async (articleId) => {
     const article = articles.find(a => a.id === articleId);
     if (!article) return;
@@ -250,7 +238,7 @@ export default function AAVMDashboard() {
   const handleApproveForPublication = (articleId) => {
     setArticles(prev => prev.map(a => 
       a.id === articleId 
-        ? { ...a, status: 'ready_for_publication' }
+        ? { ...a, status: 'published' }
         : a
     ));
   };
@@ -299,7 +287,6 @@ export default function AAVMDashboard() {
 
       const data = await response.json();
       
-      // Check if both translations are done to move to review
       const updatedArticle = articles.find(a => a.id === articleId);
       const bothTranslationsDone = language === 'chinese' 
         ? updatedArticle.translations.korean && data.result
@@ -552,6 +539,7 @@ export default function AAVMDashboard() {
                     <span className="text-gray-600">Priority: <span className={`font-medium ${article.priority === 'high' ? 'text-red-600' : article.priority === 'medium' ? 'text-orange-600' : 'text-gray-900'}`}>{article.priority}</span></span>
                     <span className="text-gray-600">Score: <span className="font-medium">{article.relevanceScore}</span></span>
                     {article.imageGenerated && <span className="text-green-600">✓ Image Ready</span>}
+                    {article.imageGenerating && <span className="text-blue-600">🎨 Generating Image...</span>}
                   </div>
                 </div>
                 
@@ -562,14 +550,6 @@ export default function AAVMDashboard() {
                   >
                     <Eye className="w-4 h-4" />
                   </button>
-                  {article.status === 'ready_for_translation' && (
-                    <button 
-                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                      onClick={() => handleApproveForTranslation(article.id)}
-                    >
-                      Approve for Translation
-                    </button>
-                  )}
                 </div>
               </div>
               
@@ -700,7 +680,6 @@ export default function AAVMDashboard() {
               
               <div className="border-t pt-3 mt-3">
                 <div className="flex gap-2 flex-wrap">
-                  {/* Step 1: Generate Summary */}
                   {article.status === 'pending_synthesis' && (
                     <button 
                       onClick={() => handleGenerateSummary(article.id)}
@@ -718,7 +697,6 @@ export default function AAVMDashboard() {
                     </button>
                   )}
 
-                  {/* Step 2: Approve Summary for Translation */}
                   {article.status === 'summary_review' && !article.editingSummary && (
                     <button 
                       onClick={() => handleApproveSummary(article.id)}
@@ -728,7 +706,6 @@ export default function AAVMDashboard() {
                     </button>
                   )}
 
-                  {/* Step 3: Translation Buttons */}
                   {article.status === 'ready_for_translation' && !article.translations.chinese && (
                     <button 
                       onClick={() => handleTranslateArticle(article.id, 'chinese')}
@@ -754,7 +731,6 @@ export default function AAVMDashboard() {
                     </button>
                   )}
 
-                  {/* Step 4: Approve Translations */}
                   {article.status === 'translation_review' && !article.editingChinese && !article.editingKorean && (
                     <button 
                       onClick={() => handleApproveTranslations(article.id)}
@@ -764,7 +740,6 @@ export default function AAVMDashboard() {
                     </button>
                   )}
 
-                  {/* Step 5: Generate Image */}
                   {article.status === 'ready_for_image' && (
                     <button 
                       onClick={() => handleGenerateImage(article.id)}
@@ -782,7 +757,6 @@ export default function AAVMDashboard() {
                     </button>
                   )}
 
-                  {/* Step 6: Regenerate Image or Approve for Publication */}
                   {article.status === 'ready_for_publication' && (
                     <>
                       <button 
@@ -800,14 +774,12 @@ export default function AAVMDashboard() {
                     </>
                   )}
 
-                  {/* Final State: Published */}
                   {article.status === 'published' && (
                     <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
                       ✓ Published
                     </span>
                   )}
 
-                  {/* Always show View Details */}
                   <button 
                     className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm flex items-center gap-1"
                     onClick={() => setSelectedArticle(article)}
@@ -1083,44 +1055,6 @@ export default function AAVMDashboard() {
                       <h4 className="font-medium text-gray-900 mb-2">Korean Translation</h4>
                       <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedArticle.translations.korean}</p>
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex gap-2 pt-4 border-t">
-                  {selectedArticle.status === 'pending_synthesis' && (
-                    <button 
-                      onClick={() => {
-                        handleGenerateSummary(selectedArticle.id);
-                        setSelectedArticle({...selectedArticle, status: 'ready_for_translation'});
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      Generate AI Summary
-                    </button>
-                  )}
-                  {!selectedArticle.translations.chinese && (
-                    <button 
-                      onClick={() => handleTranslateArticle(selectedArticle.id, 'chinese')}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Translate to Chinese
-                    </button>
-                  )}
-                  {!selectedArticle.translations.korean && (
-                    <button 
-                      onClick={() => handleTranslateArticle(selectedArticle.id, 'korean')}
-                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      Translate to Korean
-                    </button>
-                  )}
-                  {!selectedArticle.imageGenerated && !selectedArticle.imageGenerating && (
-                    <button 
-                      onClick={() => handleGenerateImage(selectedArticle.id)}
-                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                    >
-                      Generate AI Image
-                    </button>
                   )}
                 </div>
               </div>
