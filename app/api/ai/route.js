@@ -135,10 +135,13 @@ Write the news summary now with proper paragraph formatting:`;
         }, { status: 500 });
       }
 
+      // Convert paragraph breaks to HTML format for display
+      const formattedSummary = summary.replace(/\n\n/g, '\n\n').replace(/\n/g, '<br>');
+
       console.log('Summary generated successfully, length:', summary.length);
       
       return NextResponse.json({ 
-        result: summary,
+        result: formattedSummary,
         usage: data.usage
       });
     }
