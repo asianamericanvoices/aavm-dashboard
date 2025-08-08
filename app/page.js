@@ -476,7 +476,6 @@ export default function AAVMDashboard() {
                               className="w-full p-2 border border-gray-300 rounded resize-none"
                               rows="6"
                               autoFocus
-                              onFocus={(e) => e.target.setSelectionRange(e.target.value.length, e.target.value.length)}
                             />
                             <div className="flex gap-2 mt-2">
                               <button 
@@ -578,7 +577,6 @@ export default function AAVMDashboard() {
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
                               autoFocus
-                              onFocus={(e) => e.target.setSelectionRange(e.target.value.length, e.target.value.length)}
                             />
                             <div className="flex gap-2 mt-1">
                               <button 
@@ -645,7 +643,6 @@ export default function AAVMDashboard() {
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
                               autoFocus
-                              onFocus={(e) => e.target.setSelectionRange(e.target.value.length, e.target.value.length)}
                             />
                             <div className="flex gap-2 mt-1">
                               <button 
