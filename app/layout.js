@@ -1,3 +1,5 @@
+import './globals.css'
+
 export const metadata = {
   title: 'AAVM Dashboard',
   description: 'Asian American Voices Media Content Management Dashboard',
