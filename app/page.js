@@ -317,7 +317,9 @@ export default function AAVMDashboard() {
                     <span className="text-xs text-gray-500">{article.scrapedDate}</span>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{article.originalTitle}</h3>
-                  <p className="text-sm text-gray-600 mb-2">By {article.author}</p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    By {article.author && article.author !== 'N/A' ? article.author : 'Staff Writer'}
+                  </p>
                   
                   {article.aiSummary && (
                     <div className="bg-gray-50 p-3 rounded-lg mb-3">
@@ -697,7 +699,7 @@ export default function AAVMDashboard() {
                 <div>
                   <h3 className="font-semibold text-gray-900">{selectedArticle.originalTitle}</h3>
                   <p className="text-sm text-gray-600">
-                    {selectedArticle.source} • {selectedArticle.author} • {selectedArticle.scrapedDate}
+                    {selectedArticle.source} • {selectedArticle.author && selectedArticle.author !== 'N/A' ? selectedArticle.author : 'Staff Writer'} • {selectedArticle.scrapedDate}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
                     Relevance Score: {selectedArticle.relevanceScore} • Priority: {selectedArticle.priority}
