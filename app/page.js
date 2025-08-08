@@ -248,46 +248,35 @@ export default function AAVMDashboard() {
     ));
   };
 
- const handleTranslateArticle = async (articleId, language) => {
-  const article = articles.find(a => a.id === articleId);
-  if (!article || !article.aiSummary) {
-    alert('Please generate an AI summary first before translating.');
-    return;
-  }
-
-  // Get the current summary text (either from textarea if editing, or from article)
-  let currentSummary = article.aiSummary;
-  if (article.editingSummary) {
-    const textarea = document.getElementById(`summary-edit-${articleId}`);
-    if (textarea && textarea.value.trim()) {
-      currentSummary = textarea.value.replace(/\n/g, '<br>');
-      // Save the edited text to the article first
-      handleEditSummary(articleId, currentSummary);
+  const handleTranslateArticle = async (articleId, language) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article || !article.aiSummary) {
+      alert('Please generate an AI summary first before translating.');
+      return;
     }
-  }
 
-  console.log('Starting translation for:', articleId, 'to', language);
-  console.log('Using summary text:', currentSummary.substring(0, 100) + '...');
+    console.log('Starting translation for:', articleId, 'to', language);
+    console.log('Current article summary:', article.aiSummary.substring(0, 100) + '...');
 
-  setArticles(prev => prev.map(a => 
-    a.id === articleId 
-      ? { 
-          ...a, 
-          status: 'in_translation',
-          translations: {
-            ...a.translations,
-            [language]: 'Translating...'
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { 
+            ...a, 
+            status: 'in_translation',
+            translations: {
+              ...a.translations,
+              [language]: 'Translating...'
+            }
           }
-        }
-      : a
-  ));
+        : a
+    ));
 
-  try {
-    const requestBody = {
-      action: 'translate',
-      language: language,
-      summary: currentSummary.replace(/<br>/g, '\n') // Convert back to plain text for translation
-    };
+    try {
+      const requestBody = {
+        action: 'translate',
+        language: language,
+        summary: article.aiSummary.replace(/<br>/g, '\n') // Convert back to plain text for translation
+      };
 
       const response = await fetch(window.location.origin + '/api/ai', {
         method: 'POST',
@@ -763,7 +752,16 @@ export default function AAVMDashboard() {
 
                   {article.status === 'ready_for_translation' && !article.translations.chinese && (
                     <button 
-                      onClick={() => handleTranslateArticle(article.id, 'chinese')}
+                      onClick={() => {
+                        // Force save any edits before translating
+                        if (article.editingSummary) {
+                          const textarea = document.getElementById(`summary-edit-${article.id}`);
+                          if (textarea) {
+                            handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                          }
+                        }
+                        handleTranslateArticle(article.id, 'chinese');
+                      }}
                       className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
                     >
                       Translate to Chinese
@@ -771,7 +769,16 @@ export default function AAVMDashboard() {
                   )}
                   {article.status === 'ready_for_translation' && !article.translations.korean && (
                     <button 
-                      onClick={() => handleTranslateArticle(article.id, 'korean')}
+                      onClick={() => {
+                        // Force save any edits before translating
+                        if (article.editingSummary) {
+                          const textarea = document.getElementById(`summary-edit-${article.id}`);
+                          if (textarea) {
+                            handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                          }
+                        }
+                        handleTranslateArticle(article.id, 'korean');
+                      }}
                       className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                     >
                       Translate to Korean
