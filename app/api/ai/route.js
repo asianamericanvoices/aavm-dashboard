@@ -1,4 +1,4 @@
-// API route for OpenAI integration - Updated with source attribution
+// API route for OpenAI integration - Updated with source attribution and image generation
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -32,8 +32,6 @@ export async function POST(request) {
     console.log('Request body received:', JSON.stringify(body, null, 2));
     
     const { action, title, content, language, summary, source } = body;
-
-    if (action === 'summarize') {
 
     if (action === 'summarize') {
       console.log('Starting summarization for:', title);
