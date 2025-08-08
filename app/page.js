@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings } from 'lucide-react';
 
 export default function AAVMDashboard() {
@@ -15,11 +15,6 @@ export default function AAVMDashboard() {
   const [lastUpdated, setLastUpdated] = useState('');
   const [activeTab, setActiveTab] = useState('pipeline');
   const [selectedArticle, setSelectedArticle] = useState(null);
-  
-  // Refs for managing cursor position in textareas
-  const summaryTextareaRef = useRef(null);
-  const chineseTextareaRef = useRef(null);
-  const koreanTextareaRef = useRef(null);
 
   const getAuthorDisplay = (author, source) => {
     if (author && 
@@ -196,22 +191,11 @@ export default function AAVMDashboard() {
   };
 
   const handleEditSummary = (articleId, newSummary) => {
-    // Store cursor position before update
-    const textarea = summaryTextareaRef.current;
-    const cursorPosition = textarea ? textarea.selectionStart : 0;
-    
     setArticles(prev => prev.map(a => 
       a.id === articleId 
         ? { ...a, aiSummary: newSummary }
         : a
     ));
-    
-    // Restore cursor position after re-render
-    setTimeout(() => {
-      if (textarea) {
-        textarea.setSelectionRange(cursorPosition, cursorPosition);
-      }
-    }, 0);
   };
 
   const handleApproveSummary = (articleId) => {
@@ -223,10 +207,6 @@ export default function AAVMDashboard() {
   };
 
   const handleEditTranslation = (articleId, language, newTranslation) => {
-    // Store cursor position before update
-    const textarea = language === 'chinese' ? chineseTextareaRef.current : koreanTextareaRef.current;
-    const cursorPosition = textarea ? textarea.selectionStart : 0;
-    
     setArticles(prev => prev.map(a => 
       a.id === articleId 
         ? { 
@@ -238,13 +218,6 @@ export default function AAVMDashboard() {
           }
         : a
     ));
-    
-    // Restore cursor position after re-render
-    setTimeout(() => {
-      if (textarea) {
-        textarea.setSelectionRange(cursorPosition, cursorPosition);
-      }
-    }, 0);
   };
 
   const handleApproveTranslations = (articleId) => {
@@ -498,7 +471,6 @@ export default function AAVMDashboard() {
                         {article.editingSummary ? (
                           <div className="mt-2">
                             <textarea
-                              ref={summaryTextareaRef}
                               value={article.aiSummary.replace(/<br>/g, '\n')}
                               onChange={(e) => handleEditSummary(article.id, e.target.value.replace(/\n/g, '<br>'))}
                               className="w-full p-2 border border-gray-300 rounded resize-none"
@@ -600,7 +572,6 @@ export default function AAVMDashboard() {
                         {article.editingChinese ? (
                           <div>
                             <textarea
-                              ref={chineseTextareaRef}
                               value={article.translations.chinese}
                               onChange={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
@@ -667,7 +638,6 @@ export default function AAVMDashboard() {
                         {article.editingKorean ? (
                           <div>
                             <textarea
-                              ref={koreanTextareaRef}
                               value={article.translations.korean}
                               onChange={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
