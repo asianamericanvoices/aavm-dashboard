@@ -241,6 +241,17 @@ Provide only the Korean translation:`;
           error: 'Insufficient article content provided. Cannot generate summary without the full article text.' 
         }, { status: 400 });
       }
+
+      // Check if content appears to be just metadata (title/source/date only)
+      const isJustMetadata = content.includes('This article needs a comprehensive summary') || 
+                            content.includes('[Note: Full article content not available]') ||
+                            content.split('.').length < 3; // Very short content
+
+      if (isJustMetadata) {
+        return NextResponse.json({ 
+          error: 'Only article metadata provided. Full article text is required to generate accurate summaries without fabrication.' 
+        }, { status: 400 });
+      }
       
       const prompt = `You are a professional journalist writing for Asian American Voices Media. 
 
@@ -254,27 +265,29 @@ CRITICAL REQUIREMENTS - JOURNALISTIC INTEGRITY:
 - If no quotes exist in the source, do NOT include any quotes
 - When paraphrasing, make it clear it's paraphrasing, not a direct quote
 - Every fact, figure, name, date, and claim MUST be directly traceable to the source text
+- NEVER refer to "the article" - always cite the actual news source by name: "${source || 'the source'}"
 - If the source article is incomplete or truncated, state that clearly
 
-Source: ${source || 'the original source'}
-Article Title: ${title}
+Source Publication: ${source || 'the original source'}
+Article Headline: ${title}
 
 FULL ARTICLE TEXT:
 ${content}
 
 Requirements:
-- Write in clear, professional journalism style reporting ONLY the news events described in the source
+- Write in clear, professional journalism style reporting ONLY the news events described in the source text above
 - Focus ONLY on facts explicitly stated in the source material above
 - Maintain complete objectivity with no editorial bias
 - Include direct quotes from the article ONLY if they appear verbatim in the source text above
-- Attribute all information to the news source (e.g., "${source || 'The source'} reported," "According to ${source || 'the source'}")
+- Attribute all information to the news source by name (e.g., "${source || 'The source'} reported," "According to ${source || 'the source'}")
 - Use third person throughout
 - Structure with 2-3 clear paragraphs with natural breaks
 - Lead paragraph: main news event as reported in the source
 - Supporting paragraphs: key details, quotes (if any exist), context from the source
 - End with concrete facts or developments from the source, not analysis
-- Always reference the news source by name, never as "the article"
+- Always reference "${source || 'the source'}" by name, NEVER as "the article"
 - If the article appears incomplete or cut off, mention this limitation
+- Every sentence must be traceable to information explicitly provided in the source text above
 
 Write the news summary now with proper paragraph formatting:`;
 
