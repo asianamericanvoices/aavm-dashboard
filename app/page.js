@@ -481,7 +481,6 @@ export default function AAVMDashboard() {
                               onBlur={(e) => handleEditSummary(article.id, e.target.value.replace(/\n/g, '<br>'))}
                               className="w-full p-2 border border-gray-300 rounded resize-none"
                               rows="6"
-                              autoFocus
                             />
                             <div className="flex gap-2 mt-2">
                               <button 
@@ -589,7 +588,6 @@ export default function AAVMDashboard() {
                               onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
-                              autoFocus
                             />
                             <div className="flex gap-2 mt-1">
                               <button 
@@ -660,7 +658,6 @@ export default function AAVMDashboard() {
                               onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
-                              autoFocus
                             />
                             <div className="flex gap-2 mt-1">
                               <button 
