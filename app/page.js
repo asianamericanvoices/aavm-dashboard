@@ -199,14 +199,28 @@ export default function AAVMDashboard() {
   };
 
   const handleApproveSummary = (articleId) => {
-    console.log('handleApproveSummary called for article:', articleId);
+    console.log('🟢 APPROVE SUMMARY CLICKED for article:', articleId);
+    
     setArticles(prev => {
-      const updated = prev.map(a => 
-        a.id === articleId 
-          ? { ...a, status: 'ready_for_translation', editingSummary: false }
-          : a
-      );
-      console.log('Updated articles after approval:', updated.find(a => a.id === articleId));
+      const updated = prev.map(a => {
+        if (a.id === articleId) {
+          console.log('📝 Updating article status from:', a.status, 'to: ready_for_translation');
+          return {
+            ...a, 
+            status: 'ready_for_translation', 
+            editingSummary: false
+          };
+        }
+        return a;
+      });
+      
+      const updatedArticle = updated.find(a => a.id === articleId);
+      console.log('✅ Article after update:', {
+        id: updatedArticle.id,
+        status: updatedArticle.status,
+        editingSummary: updatedArticle.editingSummary
+      });
+      
       return updated;
     });
   };
@@ -254,7 +268,10 @@ export default function AAVMDashboard() {
     if (currentArticle && currentArticle.editingSummary) {
       const textarea = document.getElementById(`summary-edit-${articleId}`);
       if (textarea) {
+        console.log('SAVING EDITS - Textarea value:', textarea.value.substring(0, 50) + '...');
         handleEditSummary(articleId, textarea.value.replace(/\n/g, '<br>'));
+        // Add a small delay to ensure state updates
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
@@ -265,8 +282,10 @@ export default function AAVMDashboard() {
       return;
     }
 
-    console.log('Starting translation for:', articleId, 'to', language);
-    console.log('Current article summary:', article.aiSummary.substring(0, 100) + '...');
+    console.log(`🔍 TRANSLATION DEBUG - ${language.toUpperCase()}:`);
+    console.log('Article ID:', articleId);
+    console.log('Summary being sent:', article.aiSummary.substring(0, 100) + '...');
+    console.log('Full summary length:', article.aiSummary.length);
 
     setArticles(prev => prev.map(a => 
       a.id === articleId 
@@ -282,10 +301,13 @@ export default function AAVMDashboard() {
     ));
 
     try {
+      const summaryText = article.aiSummary.replace(/<br>/g, '\n');
+      console.log('📤 Sending to API:', summaryText.substring(0, 100) + '...');
+      
       const requestBody = {
         action: 'translate',
         language: language,
-        summary: article.aiSummary.replace(/<br>/g, '\n') // Convert back to plain text for translation
+        summary: summaryText
       };
 
       const response = await fetch(window.location.origin + '/api/ai', {
