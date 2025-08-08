@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings } from 'lucide-react';
+import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap } from 'lucide-react';
 
 export default function AAVMDashboard() {
   const [articles, setArticles] = useState([]);
@@ -107,6 +107,8 @@ export default function AAVMDashboard() {
   const getStatusColor = (status) => {
     switch(status) {
       case 'pending_synthesis': return 'text-yellow-600 bg-yellow-100';
+      case 'generating_title': return 'text-blue-600 bg-blue-100';
+      case 'title_review': return 'text-purple-600 bg-purple-100';
       case 'generating_summary': return 'text-blue-600 bg-blue-100';
       case 'summary_review': return 'text-purple-600 bg-purple-100';
       case 'ready_for_translation': return 'text-orange-600 bg-orange-100';
@@ -123,6 +125,8 @@ export default function AAVMDashboard() {
   const getStatusIcon = (status) => {
     switch(status) {
       case 'pending_synthesis': return <Clock className="w-4 h-4" />;
+      case 'generating_title': return <Zap className="w-4 h-4 animate-spin" />;
+      case 'title_review': return <Edit3 className="w-4 h-4" />;
       case 'generating_summary': return <Clock className="w-4 h-4 animate-spin" />;
       case 'summary_review': return <Edit3 className="w-4 h-4" />;
       case 'ready_for_translation': return <Globe className="w-4 h-4" />;
@@ -134,6 +138,99 @@ export default function AAVMDashboard() {
       case 'published': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
+  };
+
+  const handleGenerateTitle = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'generating_title', generatingTitle: true }
+        : a
+    ));
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'generate_title',
+          title: article.originalTitle,
+          source: article.source
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate title');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'title_review',
+              aiTitle: data.result,
+              generatingTitle: false,
+              editingTitle: false
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error generating title:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'pending_synthesis',
+              generatingTitle: false,
+              aiTitle: `Error: ${error.message}. Please try again.`
+            }
+          : a
+      ));
+    }
+  };
+
+  const handleEditTitle = (articleId, newTitle) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, aiTitle: newTitle }
+        : a
+    ));
+  };
+
+  const handleApproveTitle = (articleId) => {
+    console.log('🟢 APPROVE TITLE CLICKED for article:', articleId);
+    
+    setArticles(prev => {
+      const updated = prev.map(a => {
+        if (a.id === articleId) {
+          console.log('📝 Updating article status from:', a.status, 'to: pending_synthesis (for summary)');
+          return {
+            ...a, 
+            status: 'pending_synthesis', 
+            editingTitle: false,
+            // Keep both titles for reference
+            displayTitle: a.aiTitle || a.originalTitle
+          };
+        }
+        return a;
+      });
+      
+      const updatedArticle = updated.find(a => a.id === articleId);
+      console.log('✅ Article after title approval:', {
+        id: updatedArticle.id,
+        status: updatedArticle.status,
+        displayTitle: updatedArticle.displayTitle,
+        editingTitle: updatedArticle.editingTitle
+      });
+      
+      return updated;
+    });
   };
 
   const handleGenerateSummary = async (articleId) => {
@@ -154,9 +251,9 @@ export default function AAVMDashboard() {
         },
         body: JSON.stringify({
           action: 'summarize',
-          title: article.originalTitle,
+          title: article.displayTitle || article.aiTitle || article.originalTitle,
           source: article.source,
-          content: `${article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. This article needs a comprehensive summary.`
+          content: `${article.displayTitle || article.aiTitle || article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. This article needs a comprehensive summary.`
         }),
       });
 
@@ -380,7 +477,7 @@ export default function AAVMDashboard() {
         },
         body: JSON.stringify({
           action: 'generate_image',
-          title: article.originalTitle,
+          title: article.displayTitle || article.aiTitle || article.originalTitle,
           source: article.source
         }),
       });
@@ -490,7 +587,99 @@ export default function AAVMDashboard() {
                     <span className="text-xs text-gray-500">•</span>
                     <span className="text-xs text-gray-500">{article.scrapedDate}</span>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{article.originalTitle}</h3>
+                  
+                  {/* Title Section */}
+                  <div className="mb-3">
+                    <div className="mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {article.displayTitle || article.aiTitle || article.originalTitle}
+                      </h3>
+                      {(article.aiTitle || article.displayTitle) && article.originalTitle !== (article.displayTitle || article.aiTitle) && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Original: {article.originalTitle}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {article.aiTitle && article.status === 'title_review' && (
+                      <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                        <div className="text-sm text-gray-700">
+                          <strong>AI-Generated Title:</strong>
+                          {article.editingTitle ? (
+                            <div className="mt-2">
+                              <input
+                                id={`title-edit-${article.id}`}
+                                type="text"
+                                defaultValue={article.aiTitle}
+                                onBlur={(e) => handleEditTitle(article.id, e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded text-base font-medium"
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <button 
+                                  onClick={() => {
+                                    console.log('APPROVE TITLE BUTTON CLICKED!', article.id);
+                                    const input = document.getElementById(`title-edit-${article.id}`);
+                                    console.log('Input found:', !!input);
+                                    if (input) {
+                                      console.log('Input value:', input.value);
+                                      handleEditTitle(article.id, input.value);
+                                      handleApproveTitle(article.id);
+                                    }
+                                  }}
+                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                                >
+                                  Approve Title
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    console.log('CANCEL TITLE BUTTON CLICKED!', article.id);
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingTitle: false} : a
+                                    ));
+                                  }}
+                                  className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="mt-1 font-medium text-gray-900">
+                                {article.aiTitle}
+                              </div>
+                              <div className="flex gap-2 mt-2">
+                                <button 
+                                  onClick={() => handleApproveTitle(article.id)}
+                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                                >
+                                  Approve Title
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingTitle: true} : a
+                                    ));
+                                  }}
+                                  className="text-purple-600 hover:text-purple-800 font-medium text-xs"
+                                >
+                                  Edit Title
+                                </button>
+                                <button 
+                                  onClick={() => handleGenerateTitle(article.id)}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                                >
+                                  Regenerate
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
                   <p className="text-sm text-gray-600 mb-2">
                     By {getAuthorDisplay(article.author, article.source)}
                   </p>
@@ -499,7 +688,7 @@ export default function AAVMDashboard() {
                     <div className="mb-4">
                       <img 
                         src={article.imageUrl} 
-                        alt={`Generated image for: ${article.originalTitle}`}
+                        alt={`Generated image for: ${article.displayTitle || article.aiTitle || article.originalTitle}`}
                         className="w-full max-w-md mx-auto rounded-lg shadow-md"
                       />
                     </div>
@@ -794,6 +983,25 @@ export default function AAVMDashboard() {
               <div className="border-t pt-3 mt-3">
                 <div className="flex gap-2 flex-wrap">
                   {article.status === 'pending_synthesis' && (
+                    <button 
+                      onClick={() => handleGenerateTitle(article.id)}
+                      className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm flex items-center gap-1"
+                    >
+                      <Zap className="w-3 h-3" />
+                      Generate Punchy Title
+                    </button>
+                  )}
+                  {article.status === 'generating_title' && (
+                    <button 
+                      disabled
+                      className="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed flex items-center gap-1"
+                    >
+                      <Zap className="w-3 h-3 animate-spin" />
+                      Generating Title...
+                    </button>
+                  )}
+
+                  {(article.status === 'pending_synthesis' && (article.aiTitle || article.displayTitle)) && (
                     <button 
                       onClick={() => handleGenerateSummary(article.id)}
                       className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
@@ -1135,7 +1343,12 @@ export default function AAVMDashboard() {
             <div className="p-6">
               <div className="space-y-4">
                 <div>
-                  <h3 className="font-semibold text-gray-900">{selectedArticle.originalTitle}</h3>
+                  <h3 className="font-semibold text-gray-900">{selectedArticle.displayTitle || selectedArticle.aiTitle || selectedArticle.originalTitle}</h3>
+                  {(selectedArticle.aiTitle || selectedArticle.displayTitle) && selectedArticle.originalTitle !== (selectedArticle.displayTitle || selectedArticle.aiTitle) && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Original: {selectedArticle.originalTitle}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600">
                     {selectedArticle.source} • {getAuthorDisplay(selectedArticle.author, selectedArticle.source)} • {selectedArticle.scrapedDate}
                   </p>
@@ -1158,7 +1371,7 @@ export default function AAVMDashboard() {
                     <h4 className="font-medium text-gray-900 mb-2">Generated Image</h4>
                     <img 
                       src={selectedArticle.imageUrl} 
-                      alt={`Generated image for: ${selectedArticle.originalTitle}`}
+                      alt={`Generated image for: ${selectedArticle.displayTitle || selectedArticle.aiTitle || selectedArticle.originalTitle}`}
                       className="w-full max-w-lg rounded-lg shadow-md"
                     />
                   </div>
