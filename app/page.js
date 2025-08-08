@@ -156,12 +156,16 @@ export default function AAVMDashboard() {
     }
   };
 
+  // FIXED TRANSLATION FUNCTION WITH BETTER DEBUGGING
   const handleTranslateArticle = async (articleId, language) => {
     const article = articles.find(a => a.id === articleId);
     if (!article || !article.aiSummary) {
       alert('Please generate an AI summary first before translating.');
       return;
     }
+
+    console.log('Starting translation for:', articleId, 'to', language);
+    console.log('Summary to translate:', article.aiSummary.substring(0, 100) + '...');
 
     // Update to show loading
     setArticles(prev => prev.map(a => 
@@ -177,23 +181,32 @@ export default function AAVMDashboard() {
     ));
 
     try {
+      const requestBody = {
+        action: 'translate',
+        language: language,
+        summary: article.aiSummary // Make sure this is the full summary
+      };
+
+      console.log('Translation request:', requestBody);
+
       const response = await fetch(window.location.origin + '/api/ai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'translate',
-          language: language,
-          summary: article.aiSummary
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('Translation response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to translate');
+        const errorText = await response.text();
+        console.error('Translation error response:', errorText);
+        throw new Error(`Failed to translate: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Translation successful:', data);
       
       setArticles(prev => prev.map(a => 
         a.id === articleId 
@@ -214,7 +227,7 @@ export default function AAVMDashboard() {
               ...a, 
               translations: {
                 ...a.translations,
-                [language]: 'Error translating. Please try again.'
+                [language]: `Error: ${error.message}. Please try again.`
               }
             }
           : a
