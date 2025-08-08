@@ -327,13 +327,23 @@ export default function AAVMDashboard() {
                         }
                         {article.aiSummary.length > 200 && (
                           <button 
-                            onClick={() => setSelectedArticle(article)}
+                            onClick={() => {
+                              const updatedArticle = {...article, showFullSummary: !article.showFullSummary};
+                              setArticles(prev => prev.map(a => 
+                                a.id === article.id ? updatedArticle : a
+                              ));
+                            }}
                             className="text-blue-600 hover:text-blue-800 ml-1"
                           >
-                            Read more
+                            {article.showFullSummary ? 'Show less' : 'Read more'}
                           </button>
                         )}
                       </p>
+                      {article.showFullSummary && article.aiSummary.length > 200 && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <p className="text-sm text-gray-700">{article.aiSummary}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -365,64 +375,121 @@ export default function AAVMDashboard() {
               
               {(article.translations.chinese || article.translations.korean) && (
                 <div className="border-t pt-3 mt-3">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     {article.translations.chinese && (
                       <div>
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Chinese Translation:</h4>
-                        <p className="text-sm text-gray-700 line-clamp-2">{article.translations.chinese}</p>
+                        <p className="text-sm text-gray-700">
+                          {article.translations.chinese.length > 150 
+                            ? `${article.translations.chinese.substring(0, 150)}...` 
+                            : article.translations.chinese
+                          }
+                          {article.translations.chinese.length > 150 && (
+                            <button 
+                              onClick={() => {
+                                const updatedArticle = {...article, showFullChinese: !article.showFullChinese};
+                                setArticles(prev => prev.map(a => 
+                                  a.id === article.id ? updatedArticle : a
+                                ));
+                              }}
+                              className="text-blue-600 hover:text-blue-800 ml-1"
+                            >
+                              {article.showFullChinese ? 'Show less' : 'Read more'}
+                            </button>
+                          )}
+                        </p>
+                        {article.showFullChinese && article.translations.chinese.length > 150 && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className="text-sm text-gray-700">{article.translations.chinese}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                     {article.translations.korean && (
                       <div>
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Korean Translation:</h4>
-                        <p className="text-sm text-gray-700 line-clamp-2">{article.translations.korean}</p>
+                        <p className="text-sm text-gray-700">
+                          {article.translations.korean.length > 150 
+                            ? `${article.translations.korean.substring(0, 150)}...` 
+                            : article.translations.korean
+                          }
+                          {article.translations.korean.length > 150 && (
+                            <button 
+                              onClick={() => {
+                                const updatedArticle = {...article, showFullKorean: !article.showFullKorean};
+                                setArticles(prev => prev.map(a => 
+                                  a.id === article.id ? updatedArticle : a
+                                ));
+                              }}
+                              className="text-blue-600 hover:text-blue-800 ml-1"
+                            >
+                              {article.showFullKorean ? 'Show less' : 'Read more'}
+                            </button>
+                          )}
+                        </p>
+                        {article.showFullKorean && article.translations.korean.length > 150 && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className="text-sm text-gray-700">{article.translations.korean}</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    {article.status === 'pending_synthesis' && (
-                      <button 
-                        onClick={() => handleGenerateSummary(article.id)}
-                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                      >
-                        Generate AI Summary
-                      </button>
-                    )}
-                    {article.status === 'generating_summary' && (
-                      <button 
-                        disabled
-                        className="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"
-                      >
-                        Generating Summary...
-                      </button>
-                    )}
-                    {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.chinese && (
-                      <button 
-                        onClick={() => handleTranslateArticle(article.id, 'chinese')}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                      >
-                        Translate to Chinese
-                      </button>
-                    )}
-                    {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.korean && (
-                      <button 
-                        onClick={() => handleTranslateArticle(article.id, 'korean')}
-                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                      >
-                        Translate to Korean
-                      </button>
-                    )}
-                    {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.imageGenerated && (
-                      <button 
-                        onClick={() => handleGenerateImage(article.id)}
-                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
-                      >
-                        Generate AI Image
-                      </button>
                     )}
                   </div>
                 </div>
               )}
+              
+              {/* Action buttons - now always visible on main page */}
+              <div className="border-t pt-3 mt-3">
+                <div className="flex gap-2 flex-wrap">
+                  {article.status === 'pending_synthesis' && (
+                    <button 
+                      onClick={() => handleGenerateSummary(article.id)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                    >
+                      Generate AI Summary
+                    </button>
+                  )}
+                  {article.status === 'generating_summary' && (
+                    <button 
+                      disabled
+                      className="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"
+                    >
+                      Generating Summary...
+                    </button>
+                  )}
+                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.chinese && (
+                    <button 
+                      onClick={() => handleTranslateArticle(article.id, 'chinese')}
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                    >
+                      Translate to Chinese
+                    </button>
+                  )}
+                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.korean && (
+                    <button 
+                      onClick={() => handleTranslateArticle(article.id, 'korean')}
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                    >
+                      Translate to Korean
+                    </button>
+                  )}
+                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.imageGenerated && (
+                    <button 
+                      onClick={() => handleGenerateImage(article.id)}
+                      className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                    >
+                      Generate AI Image
+                    </button>
+                  )}
+                  <button 
+                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm flex items-center gap-1"
+                    onClick={() => setSelectedArticle(article)}
+                  >
+                    <Eye className="w-3 h-3" />
+                    View Details
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -620,16 +687,22 @@ export default function AAVMDashboard() {
 
       {/* Article Detail Modal */}
       {selectedArticle && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedArticle(null)} // Click outside to close
+        >
+          <div 
+            className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+          >
+            <div className="p-6 border-b sticky top-0 bg-white">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Article Details</h2>
                 <button 
                   onClick={() => setSelectedArticle(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 text-xl"
                 >
-                  ×
+                  ✕
                 </button>
               </div>
             </div>
