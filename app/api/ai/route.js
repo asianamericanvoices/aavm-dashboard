@@ -158,16 +158,18 @@ Write the news summary now with proper paragraph formatting:`;
       // Create a descriptive prompt for the image
       const imagePrompt = `Create a professional, photorealistic news illustration for this article: "${title}". 
 
-Style requirements:
+CRITICAL REQUIREMENTS - NO EXCEPTIONS:
+- Absolutely NO text, words, letters, numbers, signs, or any written content visible anywhere in the image
+- NO newspapers, documents, books, screens with text, or any readable materials
+- NO street signs, building signs, or any signage with text
+- Focus on abstract concepts, natural scenes, objects, or symbolic elements
 - Photorealistic, high-quality photography style
-- NO text, words, letters, or written content anywhere in the image
 - NO recognizable faces of real people or celebrities
 - Clean, modern composition suitable for news media
-- Focus on abstract concepts, objects, locations, or symbolic elements related to the story
 - Professional lighting and composition
 - Suitable for Asian American Voices Media publication
 
-The image should visually represent the themes and concepts from the article without including any text elements or identifiable people.`;
+Create a visual representation of the themes without any textual elements whatsoever. Think: landscapes, objects, abstract concepts, architecture, but never include any form of readable text or writing.`;
 
       console.log('Sending image generation request to OpenAI...');
 
