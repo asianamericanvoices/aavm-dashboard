@@ -481,7 +481,7 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const textarea = e.target.closest('div').previousElementSibling;
+                                  const textarea = e.target.parentNode.previousElementSibling;
                                   handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
                                   handleApproveSummary(article.id);
                                 }}
@@ -584,7 +584,7 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const textarea = e.target.closest('div').previousElementSibling;
+                                  const textarea = e.target.parentNode.previousElementSibling;
                                   handleEditTranslation(article.id, 'chinese', textarea.value);
                                   setArticles(prev => prev.map(a => 
                                     a.id === article.id ? {...a, editingChinese: false} : a
@@ -652,7 +652,7 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const textarea = e.target.closest('div').previousElementSibling;
+                                  const textarea = e.target.parentNode.previousElementSibling;
                                   handleEditTranslation(article.id, 'korean', textarea.value);
                                   setArticles(prev => prev.map(a => 
                                     a.id === article.id ? {...a, editingKorean: false} : a
