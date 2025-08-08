@@ -1088,8 +1088,10 @@ export default function AAVMDashboard() {
 
     // Check if we have actual article content beyond just title/source/date
     const hasRealContent = article.content && article.content.length > 100;
-    if (!hasRealContent) {
-      alert('Warning: This article appears to only have title/source/date information. To generate accurate summaries, we need the full article text. Please ensure your scraping system captures the complete article content.');
+    const hasFullText = article.fullText && article.fullText.length > 100;
+    
+    if (!hasRealContent && !hasFullText) {
+      alert('❌ Cannot generate summary: This article only contains title/source/date metadata.\n\nTo generate accurate summaries and prevent fabricated content, we need the full article text. Please update your scraping system to capture the complete article content in a "content" or "fullText" field.');
       return;
     }
 
@@ -1100,6 +1102,8 @@ export default function AAVMDashboard() {
     ));
 
     try {
+      const articleContent = article.content || article.fullText;
+      
       const response = await fetch(window.location.origin + '/api/ai', {
         method: 'POST',
         headers: {
@@ -1109,13 +1113,14 @@ export default function AAVMDashboard() {
           action: 'summarize',
           title: article.displayTitle || article.aiTitle || article.originalTitle,
           source: article.source,
-          // Use the full article content, not just a constructed string
-          content: article.content || article.fullText || `${article.displayTitle || article.aiTitle || article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. [Note: Full article content not available - this may affect summary quality]`
+          // Use the actual full article content
+          content: articleContent
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate summary');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate summary');
       }
 
       const data = await response.json();
@@ -1137,7 +1142,7 @@ export default function AAVMDashboard() {
           ? { 
               ...a, 
               status: 'pending_synthesis',
-              aiSummary: `Error generating summary: ${error.message}. Please ensure the article has full content available.`
+              aiSummary: `❌ Error: ${error.message}`
             }
           : a
       ));
