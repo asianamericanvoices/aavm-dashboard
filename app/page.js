@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings } from 'lucide-react';
 
 export default function AAVMDashboard() {
-  // State for real data from JSON file
   const [articles, setArticles] = useState([]);
   const [analytics, setAnalytics] = useState({
     articles_scraped_today: 0,
@@ -14,13 +13,10 @@ export default function AAVMDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState('');
-
   const [activeTab, setActiveTab] = useState('pipeline');
   const [selectedArticle, setSelectedArticle] = useState(null);
 
-  // Function to get better author display
   const getAuthorDisplay = (author, source) => {
-    // If we have a real author name that's not placeholder text
     if (author && 
         author !== 'N/A' && 
         author !== 'Unknown' && 
@@ -31,7 +27,6 @@ export default function AAVMDashboard() {
       return author;
     }
     
-    // Return source-specific staff attribution
     switch (source?.toLowerCase()) {
       case 'reuters':
         return 'Reuters Staff';
@@ -56,7 +51,6 @@ export default function AAVMDashboard() {
     }
   };
 
-  // Load real data from JSON file
   useEffect(() => {
     fetch('/dashboard_data.json')
       .then(response => {
@@ -79,7 +73,6 @@ export default function AAVMDashboard() {
       })
       .catch(error => {
         console.error('Error loading dashboard data:', error);
-        // Use sample data if real data not available
         setSampleData();
         setLoading(false);
       });
@@ -145,7 +138,6 @@ export default function AAVMDashboard() {
     const article = articles.find(a => a.id === articleId);
     if (!article) return;
 
-    // Update status to show loading
     setArticles(prev => prev.map(a => 
       a.id === articleId 
         ? { ...a, status: 'generating_summary', aiSummary: 'Generating AI summary...' }
@@ -161,7 +153,7 @@ export default function AAVMDashboard() {
         body: JSON.stringify({
           action: 'summarize',
           title: article.originalTitle,
-          source: article.source, // Pass the source information for proper attribution
+          source: article.source,
           content: `${article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. This article needs a comprehensive summary.`
         }),
       });
@@ -195,7 +187,6 @@ export default function AAVMDashboard() {
     }
   };
 
-  // FIXED TRANSLATION FUNCTION WITH BETTER DEBUGGING
   const handleTranslateArticle = async (articleId, language) => {
     const article = articles.find(a => a.id === articleId);
     if (!article || !article.aiSummary) {
@@ -206,7 +197,6 @@ export default function AAVMDashboard() {
     console.log('Starting translation for:', articleId, 'to', language);
     console.log('Summary to translate:', article.aiSummary.substring(0, 100) + '...');
 
-    // Update to show loading
     setArticles(prev => prev.map(a => 
       a.id === articleId 
         ? { 
@@ -223,7 +213,7 @@ export default function AAVMDashboard() {
       const requestBody = {
         action: 'translate',
         language: language,
-        summary: article.aiSummary // Make sure this is the full summary
+        summary: article.aiSummary
       };
 
       console.log('Translation request:', requestBody);
@@ -278,7 +268,6 @@ export default function AAVMDashboard() {
     const article = articles.find(a => a.id === articleId);
     if (!article) return;
 
-    // Update to show loading
     setArticles(prev => prev.map(a => 
       a.id === articleId 
         ? { ...a, imageGenerating: true }
@@ -406,6 +395,16 @@ export default function AAVMDashboard() {
                     By {getAuthorDisplay(article.author, article.source)}
                   </p>
                   
+                  {article.imageUrl && (
+                    <div className="mb-4">
+                      <img 
+                        src={article.imageUrl} 
+                        alt={`Generated image for: ${article.originalTitle}`}
+                        className="w-full max-w-md mx-auto rounded-lg shadow-md"
+                      />
+                    </div>
+                  )}
+                  
                   {article.aiSummary && (
                     <div className="bg-gray-50 p-3 rounded-lg mb-3">
                       <div className="text-sm text-gray-700">
@@ -440,7 +439,6 @@ export default function AAVMDashboard() {
                     <span className="text-gray-600">Priority: <span className={`font-medium ${article.priority === 'high' ? 'text-red-600' : article.priority === 'medium' ? 'text-orange-600' : 'text-gray-900'}`}>{article.priority}</span></span>
                     <span className="text-gray-600">Score: <span className="font-medium">{article.relevanceScore}</span></span>
                     {article.imageGenerated && <span className="text-green-600">✓ Image Ready</span>}
-                    {article.imageGenerating && <span className="text-blue-600">🎨 Generating Image...</span>}
                   </div>
                 </div>
                 
@@ -461,17 +459,6 @@ export default function AAVMDashboard() {
                   )}
                 </div>
               </div>
-              
-              {/* Show generated image */}
-              {article.imageUrl && (
-                <div className="mb-4">
-                  <img 
-                    src={article.imageUrl} 
-                    alt={`Generated image for: ${article.originalTitle}`}
-                    className="w-full max-w-md mx-auto rounded-lg shadow-md"
-                  />
-                </div>
-              )}
               
               {(article.translations.chinese || article.translations.korean) && (
                 <div className="border-t pt-3 mt-3">
@@ -528,7 +515,6 @@ export default function AAVMDashboard() {
                 </div>
               )}
               
-              {/* Action buttons - now always visible on main page */}
               <div className="border-t pt-3 mt-3">
                 <div className="flex gap-2 flex-wrap">
                   {article.status === 'pending_synthesis' && (
@@ -713,7 +699,6 @@ export default function AAVMDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -735,7 +720,6 @@ export default function AAVMDashboard() {
         </div>
       </div>
 
-      {/* Navigation */}
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex gap-6 border-b">
           <button 
@@ -771,7 +755,6 @@ export default function AAVMDashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
         {activeTab === 'pipeline' && <ArticlePipeline />}
         {activeTab === 'analytics' && <Analytics />}
@@ -783,15 +766,14 @@ export default function AAVMDashboard() {
         )}
       </div>
 
-      {/* Article Detail Modal */}
       {selectedArticle && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedArticle(null)} // Click outside to close
+          onClick={() => setSelectedArticle(null)}
         >
           <div 
             className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b sticky top-0 bg-white">
               <div className="flex items-center justify-between">
@@ -824,6 +806,17 @@ export default function AAVMDashboard() {
                     Read Original Article
                   </a>
                 </div>
+                
+                {selectedArticle.imageUrl && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Generated Image</h4>
+                    <img 
+                      src={selectedArticle.imageUrl} 
+                      alt={`Generated image for: ${selectedArticle.originalTitle}`}
+                      className="w-full max-w-lg rounded-lg shadow-md"
+                    />
+                  </div>
+                )}
                 
                 {selectedArticle.aiSummary && (
                   <div>
@@ -864,16 +857,7 @@ export default function AAVMDashboard() {
                   )}
                   {!selectedArticle.translations.chinese && (
                     <button 
-                      onClick={() => {
-                        handleTranslateArticle(selectedArticle.id, 'chinese');
-                        setSelectedArticle({
-                          ...selectedArticle, 
-                          translations: {
-                            ...selectedArticle.translations,
-                            chinese: '此文章已翻译成中文。这是一个演示翻译，显示翻译功能正常工作。'
-                          }
-                        });
-                      }}
+                      onClick={() => handleTranslateArticle(selectedArticle.id, 'chinese')}
                       className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                     >
                       Translate to Chinese
@@ -881,27 +865,15 @@ export default function AAVMDashboard() {
                   )}
                   {!selectedArticle.translations.korean && (
                     <button 
-                      onClick={() => {
-                        handleTranslateArticle(selectedArticle.id, 'korean');
-                        setSelectedArticle({
-                          ...selectedArticle, 
-                          translations: {
-                            ...selectedArticle.translations,
-                            korean: '이 기사는 한국어로 번역되었습니다. 이것은 번역 기능이 제대로 작동함을 보여주는 데모 번역입니다.'
-                          }
-                        });
-                      }}
+                      onClick={() => handleTranslateArticle(selectedArticle.id, 'korean')}
                       className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
                       Translate to Korean
                     </button>
                   )}
-                  {!selectedArticle.imageGenerated && (
+                  {!selectedArticle.imageGenerated && !selectedArticle.imageGenerating && (
                     <button 
-                      onClick={() => {
-                        handleGenerateImage(selectedArticle.id);
-                        setSelectedArticle({...selectedArticle, imageGenerated: true});
-                      }}
+                      onClick={() => handleGenerateImage(selectedArticle.id)}
                       className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                     >
                       Generate AI Image
