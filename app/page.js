@@ -274,12 +274,59 @@ export default function AAVMDashboard() {
     }
   };
 
-  const handleGenerateImage = (articleId) => {
-    setArticles(prev => prev.map(article => 
-      article.id === articleId 
-        ? { ...article, imageGenerated: true }
-        : article
+  const handleGenerateImage = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    // Update to show loading
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, imageGenerating: true }
+        : a
     ));
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'generate_image',
+          title: article.originalTitle,
+          source: article.source
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate image');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              imageGenerated: true,
+              imageGenerating: false,
+              imageUrl: data.result
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error generating image:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              imageGenerating: false,
+              imageUrl: null
+            }
+          : a
+      ));
+      alert('Failed to generate image. Please try again.');
+    }
   };
 
   const getTopicCounts = () => {
@@ -393,6 +440,7 @@ export default function AAVMDashboard() {
                     <span className="text-gray-600">Priority: <span className={`font-medium ${article.priority === 'high' ? 'text-red-600' : article.priority === 'medium' ? 'text-orange-600' : 'text-gray-900'}`}>{article.priority}</span></span>
                     <span className="text-gray-600">Score: <span className="font-medium">{article.relevanceScore}</span></span>
                     {article.imageGenerated && <span className="text-green-600">✓ Image Ready</span>}
+                    {article.imageGenerating && <span className="text-blue-600">🎨 Generating Image...</span>}
                   </div>
                 </div>
                 
@@ -413,6 +461,17 @@ export default function AAVMDashboard() {
                   )}
                 </div>
               </div>
+              
+              {/* Show generated image */}
+              {article.imageUrl && (
+                <div className="mb-4">
+                  <img 
+                    src={article.imageUrl} 
+                    alt={`Generated image for: ${article.originalTitle}`}
+                    className="w-full max-w-md mx-auto rounded-lg shadow-md"
+                  />
+                </div>
+              )}
               
               {(article.translations.chinese || article.translations.korean) && (
                 <div className="border-t pt-3 mt-3">
@@ -504,12 +563,20 @@ export default function AAVMDashboard() {
                       Translate to Korean
                     </button>
                   )}
-                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.imageGenerated && (
+                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.imageGenerated && !article.imageGenerating && (
                     <button 
                       onClick={() => handleGenerateImage(article.id)}
                       className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
                     >
                       Generate AI Image
+                    </button>
+                  )}
+                  {article.imageGenerating && (
+                    <button 
+                      disabled
+                      className="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"
+                    >
+                      Generating Image...
                     </button>
                   )}
                   <button 
