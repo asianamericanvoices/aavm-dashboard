@@ -123,6 +123,7 @@ export default function AAVMDashboard() {
         body: JSON.stringify({
           action: 'summarize',
           title: article.originalTitle,
+          source: article.source, // Pass the source information for proper attribution
           content: `${article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. This article needs a comprehensive summary.`
         }),
       });
