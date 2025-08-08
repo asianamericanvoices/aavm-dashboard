@@ -199,11 +199,16 @@ export default function AAVMDashboard() {
   };
 
   const handleApproveSummary = (articleId) => {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, status: 'ready_for_translation', editingSummary: false }
-        : a
-    ));
+    console.log('handleApproveSummary called for article:', articleId);
+    setArticles(prev => {
+      const updated = prev.map(a => 
+        a.id === articleId 
+          ? { ...a, status: 'ready_for_translation', editingSummary: false }
+          : a
+      );
+      console.log('Updated articles after approval:', updated.find(a => a.id === articleId));
+      return updated;
+    });
   };
 
   const handleEditTranslation = (articleId, language, newTranslation) => {
@@ -482,8 +487,10 @@ export default function AAVMDashboard() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   const textarea = e.target.parentNode.previousElementSibling;
+                                  console.log('Approving summary, textarea value:', textarea.value);
                                   handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
                                   handleApproveSummary(article.id);
+                                  console.log('Summary approved for article:', article.id);
                                 }}
                                 className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                               >
@@ -492,6 +499,7 @@ export default function AAVMDashboard() {
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
+                                  console.log('Cancel button clicked for article:', article.id);
                                   setArticles(prev => prev.map(a => 
                                     a.id === article.id ? {...a, editingSummary: false} : a
                                   ));
