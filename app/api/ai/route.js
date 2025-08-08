@@ -1,4 +1,4 @@
-// API route for OpenAI integration - Updated with enhanced journalism standards
+// API route for OpenAI integration - Updated with source attribution
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -31,14 +31,14 @@ export async function POST(request) {
     const body = await request.json();
     console.log('Request body received:', JSON.stringify(body, null, 2));
     
-    const { action, title, content, language, summary } = body;
+    const { action, title, content, language, summary, source } = body;
 
     if (action === 'summarize') {
       console.log('Starting summarization for:', title);
       
       const prompt = `You are a professional journalist writing for Asian American Voices Media. 
 
-Write a comprehensive, objective news summary of 300-400 words based STRICTLY on the information provided in this article. You must follow these critical journalism standards:
+Write a comprehensive, objective news summary of 300-400 words that reports the news events and developments described in this article. Focus on WHAT happened, WHO was involved, WHEN it occurred, WHERE it took place, and WHY it matters.
 
 STRICT REQUIREMENTS:
 - NEVER fabricate, hallucinate, or create quotes that don't exist in the source material
@@ -47,23 +47,29 @@ STRICT REQUIREMENTS:
 - ONLY use direct quotes that appear verbatim in the source material
 - When paraphrasing, make it clear it's paraphrasing, not a direct quote
 - Include proper attribution for all claims and information
+- Report the news events, not analyze the article itself
+- Focus on the actual developments, decisions, actions, and statements reported
+- Use proper source attribution (e.g., "Reuters reports," "According to ${source || 'the source'}," "${source || 'The source'} reported")
+- NEVER refer to "the article" - always cite the actual news source by name
 - If the article lacks sufficient detail, note that rather than filling gaps with assumptions
 
 Title: ${title}
+Source: This article is from ${source || 'the original source'}
 Content: ${content}
 
 Requirements:
-- Write in clear, professional journalism style
-- Focus on facts explicitly stated in the source material
+- Write in clear, professional journalism style reporting the news events
+- Focus on facts explicitly stated in the source material about what happened
 - Maintain complete objectivity with no editorial bias
 - Include direct quotes from the article when available, using quotation marks
-- Attribute all information to sources mentioned in the article
+- Attribute all information to the news source (e.g., "${source || 'The source'} reported," "According to ${source || 'the source'}")
 - Include relevant context for Asian American readers when the article provides such context
 - Use third person throughout
-- Structure with clear lead paragraph followed by supporting details from the article
-- If information is limited, acknowledge that rather than speculating
+- Structure with clear lead paragraph about the main news event, followed by supporting details
+- Report developments, decisions, actions, and statements - not observations about the article
+- Always reference the news source by name, never as "the article"
 
-Write the summary now, ensuring every fact comes directly from the provided source material:`;
+Write the news summary now, focusing on the events and developments reported by ${source || 'the source'}:`;
 
       console.log('Sending request to OpenAI API...');
 
@@ -78,7 +84,7 @@ Write the summary now, ensuring every fact comes directly from the provided sour
           messages: [
             {
               role: 'system',
-              content: 'You are a professional journalist committed to accuracy and truth. You NEVER fabricate quotes, add information not in the source, or create composite statements. Every piece of information in your summary must be traceable to the source material provided. When in doubt, indicate limited information rather than filling gaps.'
+              content: `You are a professional journalist reporting news events. Write news summaries that focus on WHAT happened, WHO was involved, WHEN and WHERE events occurred, and specific developments reported in the source. Always attribute information to the specific news source (${source || 'the source'}) and never refer to "the article." Report the news events the source describes, not analysis of the source itself. You NEVER fabricate quotes, add information not in the source, or create composite statements. Every piece of information must be traceable to the source material provided.`
             },
             {
               role: 'user',
@@ -86,7 +92,7 @@ Write the summary now, ensuring every fact comes directly from the provided sour
             }
           ],
           max_tokens: 800,
-          temperature: 0.1, // Lower temperature for more factual, less creative output
+          temperature: 0.1,
           top_p: 1,
           frequency_penalty: 0,
           presence_penalty: 0
@@ -188,7 +194,7 @@ Provide only the Korean translation:`;
             }
           ],
           max_tokens: 1000,
-          temperature: 0.1, // Low temperature for accurate translation
+          temperature: 0.1,
           top_p: 1,
           frequency_penalty: 0,
           presence_penalty: 0
