@@ -156,7 +156,18 @@ Write the news summary now with proper paragraph formatting:`;
       }
 
       // Create a descriptive prompt for the image
-      const imagePrompt = `Create a professional, news-appropriate illustration for this article: "${title}". Style should be modern, clean, and suitable for Asian American Voices Media. Avoid text in the image. Focus on the key themes and make it visually engaging for news readers.`;
+      const imagePrompt = `Create a professional, photorealistic news illustration for this article: "${title}". 
+
+Style requirements:
+- Photorealistic, high-quality photography style
+- NO text, words, letters, or written content anywhere in the image
+- NO recognizable faces of real people or celebrities
+- Clean, modern composition suitable for news media
+- Focus on abstract concepts, objects, locations, or symbolic elements related to the story
+- Professional lighting and composition
+- Suitable for Asian American Voices Media publication
+
+The image should visually represent the themes and concepts from the article without including any text elements or identifiable people.`;
 
       console.log('Sending image generation request to OpenAI...');
 
@@ -172,7 +183,7 @@ Write the news summary now with proper paragraph formatting:`;
             prompt: imagePrompt,
             n: 1,
             size: '1024x1024',
-            quality: 'standard',
+            quality: 'hd',
             style: 'natural'
           }),
         });
