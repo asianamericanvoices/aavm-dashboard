@@ -34,6 +34,8 @@ export async function POST(request) {
     const { action, title, content, language, summary, source } = body;
 
     if (action === 'summarize') {
+
+    if (action === 'summarize') {
       console.log('Starting summarization for:', title);
       
       const prompt = `You are a professional journalist writing for Asian American Voices Media. 
@@ -146,6 +148,82 @@ Write the news summary now with proper paragraph formatting:`;
       });
     }
 
+    if (action === 'generate_image') {
+      console.log('Starting image generation for:', title);
+      
+      if (!title || title.trim().length === 0) {
+        return NextResponse.json({ 
+          error: 'No article title provided for image generation.' 
+        }, { status: 400 });
+      }
+
+      // Create a descriptive prompt for the image
+      const imagePrompt = `Create a professional, news-appropriate illustration for this article: "${title}". Style should be modern, clean, and suitable for Asian American Voices Media. Avoid text in the image. Focus on the key themes and make it visually engaging for news readers.`;
+
+      console.log('Sending image generation request to OpenAI...');
+
+      try {
+        const openaiResponse = await fetch('https://api.openai.com/v1/images/generations', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'dall-e-3',
+            prompt: imagePrompt,
+            n: 1,
+            size: '1024x1024',
+            quality: 'standard',
+            style: 'natural'
+          }),
+        });
+
+        console.log('OpenAI image response status:', openaiResponse.status);
+
+        if (!openaiResponse.ok) {
+          const errorText = await openaiResponse.text();
+          console.error('OpenAI image generation error:', errorText);
+          
+          let errorMessage = 'Image generation API request failed';
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error?.message || errorMessage;
+          } catch (e) {
+            // Use default message
+          }
+          
+          return NextResponse.json({ 
+            error: `Image generation failed: ${errorMessage}`,
+            details: errorText
+          }, { status: 500 });
+        }
+
+        const data = await openaiResponse.json();
+        const imageUrl = data.data?.[0]?.url;
+        
+        if (!imageUrl) {
+          console.error('No image URL in OpenAI response:', JSON.stringify(data, null, 2));
+          return NextResponse.json({ 
+            error: 'No image URL returned from OpenAI' 
+          }, { status: 500 });
+        }
+
+        console.log('Image generated successfully:', imageUrl);
+        
+        return NextResponse.json({ 
+          result: imageUrl,
+          usage: data.usage
+        });
+
+      } catch (error) {
+        console.error('Image generation error:', error);
+        return NextResponse.json({ 
+          error: `Image generation failed: ${error.message}`,
+        }, { status: 500 });
+      }
+    }
+
     if (action === 'translate') {
       console.log('Starting translation to:', language);
       
@@ -247,7 +325,7 @@ Provide only the Korean translation:`;
     }
 
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: summarize, translate' 
+      error: 'Invalid action. Supported actions: summarize, translate, generate_image' 
     }, { status: 400 });
 
   } catch (error) {
