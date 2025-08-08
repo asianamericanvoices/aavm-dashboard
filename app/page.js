@@ -248,34 +248,46 @@ export default function AAVMDashboard() {
     ));
   };
 
-  const handleTranslateArticle = async (articleId, language) => {
-    const article = articles.find(a => a.id === articleId);
-    if (!article || !article.aiSummary) {
-      alert('Please generate an AI summary first before translating.');
-      return;
+ const handleTranslateArticle = async (articleId, language) => {
+  const article = articles.find(a => a.id === articleId);
+  if (!article || !article.aiSummary) {
+    alert('Please generate an AI summary first before translating.');
+    return;
+  }
+
+  // Get the current summary text (either from textarea if editing, or from article)
+  let currentSummary = article.aiSummary;
+  if (article.editingSummary) {
+    const textarea = document.getElementById(`summary-edit-${articleId}`);
+    if (textarea && textarea.value.trim()) {
+      currentSummary = textarea.value.replace(/\n/g, '<br>');
+      // Save the edited text to the article first
+      handleEditSummary(articleId, currentSummary);
     }
+  }
 
-    console.log('Starting translation for:', articleId, 'to', language);
+  console.log('Starting translation for:', articleId, 'to', language);
+  console.log('Using summary text:', currentSummary.substring(0, 100) + '...');
 
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { 
-            ...a, 
-            status: 'in_translation',
-            translations: {
-              ...a.translations,
-              [language]: 'Translating...'
-            }
+  setArticles(prev => prev.map(a => 
+    a.id === articleId 
+      ? { 
+          ...a, 
+          status: 'in_translation',
+          translations: {
+            ...a.translations,
+            [language]: 'Translating...'
           }
-        : a
-    ));
+        }
+      : a
+  ));
 
-    try {
-      const requestBody = {
-        action: 'translate',
-        language: language,
-        summary: article.aiSummary
-      };
+  try {
+    const requestBody = {
+      action: 'translate',
+      language: language,
+      summary: currentSummary.replace(/<br>/g, '\n') // Convert back to plain text for translation
+    };
 
       const response = await fetch(window.location.origin + '/api/ai', {
         method: 'POST',
