@@ -123,7 +123,7 @@ export default function AAVMDashboard() {
         body: JSON.stringify({
           action: 'summarize',
           title: article.originalTitle,
-          content: article.aiSummary || `${article.originalTitle}. ${article.source}. This article needs a comprehensive summary.`
+          content: `${article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. This article needs a comprehensive summary.`
         }),
       });
 
@@ -321,11 +321,11 @@ export default function AAVMDashboard() {
                   {article.aiSummary && (
                     <div className="bg-gray-50 p-3 rounded-lg mb-3">
                       <p className="text-sm text-gray-700">
-                        <strong>AI Summary:</strong> {article.aiSummary.length > 200 
-                          ? `${article.aiSummary.substring(0, 200)}...` 
-                          : article.aiSummary
+                        <strong>AI Summary:</strong> {article.showFullSummary || article.aiSummary.length <= 300
+                          ? article.aiSummary
+                          : `${article.aiSummary.substring(0, 300)}...`
                         }
-                        {article.aiSummary.length > 200 && (
+                        {article.aiSummary.length > 300 && (
                           <button 
                             onClick={() => {
                               const updatedArticle = {...article, showFullSummary: !article.showFullSummary};
@@ -333,17 +333,12 @@ export default function AAVMDashboard() {
                                 a.id === article.id ? updatedArticle : a
                               ));
                             }}
-                            className="text-blue-600 hover:text-blue-800 ml-1"
+                            className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
                           >
                             {article.showFullSummary ? 'Show less' : 'Read more'}
                           </button>
                         )}
                       </p>
-                      {article.showFullSummary && article.aiSummary.length > 200 && (
-                        <div className="mt-2 pt-2 border-t border-gray-200">
-                          <p className="text-sm text-gray-700">{article.aiSummary}</p>
-                        </div>
-                      )}
                     </div>
                   )}
                   
@@ -380,11 +375,11 @@ export default function AAVMDashboard() {
                       <div>
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Chinese Translation:</h4>
                         <p className="text-sm text-gray-700">
-                          {article.translations.chinese.length > 150 
-                            ? `${article.translations.chinese.substring(0, 150)}...` 
-                            : article.translations.chinese
+                          {article.showFullChinese || article.translations.chinese.length <= 200
+                            ? article.translations.chinese
+                            : `${article.translations.chinese.substring(0, 200)}...`
                           }
-                          {article.translations.chinese.length > 150 && (
+                          {article.translations.chinese.length > 200 && (
                             <button 
                               onClick={() => {
                                 const updatedArticle = {...article, showFullChinese: !article.showFullChinese};
@@ -392,28 +387,23 @@ export default function AAVMDashboard() {
                                   a.id === article.id ? updatedArticle : a
                                 ));
                               }}
-                              className="text-blue-600 hover:text-blue-800 ml-1"
+                              className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
                             >
                               {article.showFullChinese ? 'Show less' : 'Read more'}
                             </button>
                           )}
                         </p>
-                        {article.showFullChinese && article.translations.chinese.length > 150 && (
-                          <div className="mt-2 pt-2 border-t border-gray-200">
-                            <p className="text-sm text-gray-700">{article.translations.chinese}</p>
-                          </div>
-                        )}
                       </div>
                     )}
                     {article.translations.korean && (
                       <div>
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Korean Translation:</h4>
                         <p className="text-sm text-gray-700">
-                          {article.translations.korean.length > 150 
-                            ? `${article.translations.korean.substring(0, 150)}...` 
-                            : article.translations.korean
+                          {article.showFullKorean || article.translations.korean.length <= 200
+                            ? article.translations.korean
+                            : `${article.translations.korean.substring(0, 200)}...`
                           }
-                          {article.translations.korean.length > 150 && (
+                          {article.translations.korean.length > 200 && (
                             <button 
                               onClick={() => {
                                 const updatedArticle = {...article, showFullKorean: !article.showFullKorean};
@@ -421,17 +411,12 @@ export default function AAVMDashboard() {
                                   a.id === article.id ? updatedArticle : a
                                 ));
                               }}
-                              className="text-blue-600 hover:text-blue-800 ml-1"
+                              className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
                             >
                               {article.showFullKorean ? 'Show less' : 'Read more'}
                             </button>
                           )}
                         </p>
-                        {article.showFullKorean && article.translations.korean.length > 150 && (
-                          <div className="mt-2 pt-2 border-t border-gray-200">
-                            <p className="text-sm text-gray-700">{article.translations.korean}</p>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
