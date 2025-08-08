@@ -1,4 +1,8 @@
-'use client';
+<div className="border-t pt-3 mt-3">
+                <div className="flex gap-2 flex-wrap">
+                  {/* Step 1: Generate Summary */}
+                  {article.status === 'pending_synthesis' && (
+                    <button 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings } from 'lucide-react';
@@ -107,10 +111,15 @@ export default function AAVMDashboard() {
   const getStatusColor = (status) => {
     switch(status) {
       case 'pending_synthesis': return 'text-yellow-600 bg-yellow-100';
-      case 'ready_for_translation': return 'text-blue-600 bg-blue-100';
-      case 'in_translation': return 'text-purple-600 bg-purple-100';
-      case 'ready_for_review': return 'text-orange-600 bg-orange-100';
-      case 'published': return 'text-green-600 bg-green-100';
+      case 'generating_summary': return 'text-blue-600 bg-blue-100';
+      case 'summary_review': return 'text-purple-600 bg-purple-100';
+      case 'ready_for_translation': return 'text-orange-600 bg-orange-100';
+      case 'in_translation': return 'text-indigo-600 bg-indigo-100';
+      case 'translation_review': return 'text-pink-600 bg-pink-100';
+      case 'ready_for_image': return 'text-teal-600 bg-teal-100';
+      case 'generating_image': return 'text-cyan-600 bg-cyan-100';
+      case 'ready_for_publication': return 'text-green-600 bg-green-100';
+      case 'published': return 'text-emerald-600 bg-emerald-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -118,9 +127,14 @@ export default function AAVMDashboard() {
   const getStatusIcon = (status) => {
     switch(status) {
       case 'pending_synthesis': return <Clock className="w-4 h-4" />;
-      case 'ready_for_translation': return <Edit3 className="w-4 h-4" />;
-      case 'in_translation': return <Globe className="w-4 h-4" />;
-      case 'ready_for_review': return <AlertCircle className="w-4 h-4" />;
+      case 'generating_summary': return <Clock className="w-4 h-4 animate-spin" />;
+      case 'summary_review': return <Edit3 className="w-4 h-4" />;
+      case 'ready_for_translation': return <Globe className="w-4 h-4" />;
+      case 'in_translation': return <Globe className="w-4 h-4 animate-pulse" />;
+      case 'translation_review': return <Edit3 className="w-4 h-4" />;
+      case 'ready_for_image': return <AlertCircle className="w-4 h-4" />;
+      case 'generating_image': return <AlertCircle className="w-4 h-4 animate-spin" />;
+      case 'ready_for_publication': return <CheckCircle className="w-4 h-4" />;
       case 'published': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
@@ -168,8 +182,9 @@ export default function AAVMDashboard() {
         a.id === articleId 
           ? { 
               ...a, 
-              status: 'ready_for_translation',
-              aiSummary: data.result
+              status: 'summary_review',
+              aiSummary: data.result,
+              editingSummary: false
             }
           : a
       ));
@@ -187,6 +202,59 @@ export default function AAVMDashboard() {
     }
   };
 
+  const handleEditSummary = (articleId, newSummary) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, aiSummary: newSummary }
+        : a
+    ));
+  };
+
+  const handleApproveSummary = (articleId) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'ready_for_translation', editingSummary: false }
+        : a
+    ));
+  };
+
+  const handleEditTranslation = (articleId, language, newTranslation) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { 
+            ...a, 
+            translations: {
+              ...a.translations,
+              [language]: newTranslation
+            }
+          }
+        : a
+    ));
+  };
+
+  const handleApproveTranslations = (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (article && article.translations.chinese && article.translations.korean) {
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'ready_for_image',
+              editingTranslations: false
+            }
+          : a
+      ));
+    }
+  };
+
+  const handleApproveForPublication = (articleId) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'ready_for_publication' }
+        : a
+    ));
+  };
+
   const handleTranslateArticle = async (articleId, language) => {
     const article = articles.find(a => a.id === articleId);
     if (!article || !article.aiSummary) {
@@ -195,12 +263,12 @@ export default function AAVMDashboard() {
     }
 
     console.log('Starting translation for:', articleId, 'to', language);
-    console.log('Summary to translate:', article.aiSummary.substring(0, 100) + '...');
 
     setArticles(prev => prev.map(a => 
       a.id === articleId 
         ? { 
             ...a, 
+            status: 'in_translation',
             translations: {
               ...a.translations,
               [language]: 'Translating...'
@@ -216,8 +284,6 @@ export default function AAVMDashboard() {
         summary: article.aiSummary
       };
 
-      console.log('Translation request:', requestBody);
-
       const response = await fetch(window.location.origin + '/api/ai', {
         method: 'POST',
         headers: {
@@ -226,21 +292,24 @@ export default function AAVMDashboard() {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('Translation response status:', response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Translation error response:', errorText);
         throw new Error(`Failed to translate: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('Translation successful:', data);
       
+      // Check if both translations are done to move to review
+      const updatedArticle = articles.find(a => a.id === articleId);
+      const bothTranslationsDone = language === 'chinese' 
+        ? updatedArticle.translations.korean && data.result
+        : updatedArticle.translations.chinese && data.result;
+
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
               ...a, 
+              status: bothTranslationsDone ? 'translation_review' : 'in_translation',
               translations: {
                 ...a.translations,
                 [language]: data.result
@@ -254,6 +323,7 @@ export default function AAVMDashboard() {
         a.id === articleId 
           ? { 
               ...a, 
+              status: 'ready_for_translation',
               translations: {
                 ...a.translations,
                 [language]: `Error: ${error.message}. Please try again.`
@@ -270,7 +340,7 @@ export default function AAVMDashboard() {
 
     setArticles(prev => prev.map(a => 
       a.id === articleId 
-        ? { ...a, imageGenerating: true }
+        ? { ...a, status: 'generating_image', imageGenerating: true }
         : a
     ));
 
@@ -297,6 +367,7 @@ export default function AAVMDashboard() {
         a.id === articleId 
           ? { 
               ...a, 
+              status: 'ready_for_publication',
               imageGenerated: true,
               imageGenerating: false,
               imageUrl: data.result
@@ -309,6 +380,7 @@ export default function AAVMDashboard() {
         a.id === articleId 
           ? { 
               ...a, 
+              status: 'ready_for_image',
               imageGenerating: false,
               imageUrl: null
             }
@@ -409,26 +481,67 @@ export default function AAVMDashboard() {
                     <div className="bg-gray-50 p-3 rounded-lg mb-3">
                       <div className="text-sm text-gray-700">
                         <strong>AI Summary:</strong> 
-                        <div 
-                          className="mt-1"
-                          dangerouslySetInnerHTML={{
-                            __html: article.showFullSummary || article.aiSummary.length <= 300
-                              ? article.aiSummary
-                              : `${article.aiSummary.substring(0, 300)}...`
-                          }}
-                        />
-                        {article.aiSummary.length > 300 && (
-                          <button 
-                            onClick={() => {
-                              const updatedArticle = {...article, showFullSummary: !article.showFullSummary};
-                              setArticles(prev => prev.map(a => 
-                                a.id === article.id ? updatedArticle : a
-                              ));
-                            }}
-                            className="text-blue-600 hover:text-blue-800 ml-2 font-medium mt-1 inline-block"
-                          >
-                            {article.showFullSummary ? 'Show less' : 'Read more'}
-                          </button>
+                        {article.editingSummary ? (
+                          <div className="mt-2">
+                            <textarea
+                              value={article.aiSummary.replace(/<br>/g, '\n')}
+                              onChange={(e) => handleEditSummary(article.id, e.target.value.replace(/\n/g, '<br>'))}
+                              className="w-full p-2 border border-gray-300 rounded resize-none"
+                              rows="6"
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <button 
+                                onClick={() => handleApproveSummary(article.id)}
+                                className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                              >
+                                Approve Summary
+                              </button>
+                              <button 
+                                onClick={() => setArticles(prev => prev.map(a => 
+                                  a.id === article.id ? {...a, editingSummary: false} : a
+                                ))}
+                                className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div 
+                              className="mt-1"
+                              dangerouslySetInnerHTML={{
+                                __html: article.showFullSummary || article.aiSummary.length <= 300
+                                  ? article.aiSummary
+                                  : `${article.aiSummary.substring(0, 300)}...`
+                              }}
+                            />
+                            <div className="flex gap-2 mt-2">
+                              {article.aiSummary.length > 300 && (
+                                <button 
+                                  onClick={() => {
+                                    const updatedArticle = {...article, showFullSummary: !article.showFullSummary};
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? updatedArticle : a
+                                    ));
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                                >
+                                  {article.showFullSummary ? 'Show less' : 'Read more'}
+                                </button>
+                              )}
+                              {article.status === 'summary_review' && (
+                                <button 
+                                  onClick={() => setArticles(prev => prev.map(a => 
+                                    a.id === article.id ? {...a, editingSummary: true} : a
+                                  ))}
+                                  className="text-purple-600 hover:text-purple-800 font-medium text-xs"
+                                >
+                                  Edit Summary
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -466,49 +579,119 @@ export default function AAVMDashboard() {
                     {article.translations.chinese && (
                       <div>
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Chinese Translation:</h4>
-                        <p className="text-sm text-gray-700">
-                          {article.showFullChinese || article.translations.chinese.length <= 200
-                            ? article.translations.chinese
-                            : `${article.translations.chinese.substring(0, 200)}...`
-                          }
-                          {article.translations.chinese.length > 200 && (
-                            <button 
-                              onClick={() => {
-                                const updatedArticle = {...article, showFullChinese: !article.showFullChinese};
-                                setArticles(prev => prev.map(a => 
-                                  a.id === article.id ? updatedArticle : a
-                                ));
-                              }}
-                              className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
-                            >
-                              {article.showFullChinese ? 'Show less' : 'Read more'}
-                            </button>
-                          )}
-                        </p>
+                        {article.editingChinese ? (
+                          <div>
+                            <textarea
+                              value={article.translations.chinese}
+                              onChange={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
+                              rows="4"
+                            />
+                            <div className="flex gap-2 mt-1">
+                              <button 
+                                onClick={() => setArticles(prev => prev.map(a => 
+                                  a.id === article.id ? {...a, editingChinese: false} : a
+                                ))}
+                                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-sm text-gray-700">
+                              {article.showFullChinese || article.translations.chinese.length <= 200
+                                ? article.translations.chinese
+                                : `${article.translations.chinese.substring(0, 200)}...`
+                              }
+                            </p>
+                            <div className="flex gap-2 mt-1">
+                              {article.translations.chinese.length > 200 && (
+                                <button 
+                                  onClick={() => {
+                                    const updatedArticle = {...article, showFullChinese: !article.showFullChinese};
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? updatedArticle : a
+                                    ));
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                                >
+                                  {article.showFullChinese ? 'Show less' : 'Read more'}
+                                </button>
+                              )}
+                              {article.status === 'translation_review' && (
+                                <button 
+                                  onClick={() => setArticles(prev => prev.map(a => 
+                                    a.id === article.id ? {...a, editingChinese: true} : a
+                                  ))}
+                                  className="text-purple-600 hover:text-purple-800 font-medium text-xs"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {article.translations.korean && (
                       <div>
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Korean Translation:</h4>
-                        <p className="text-sm text-gray-700">
-                          {article.showFullKorean || article.translations.korean.length <= 200
-                            ? article.translations.korean
-                            : `${article.translations.korean.substring(0, 200)}...`
-                          }
-                          {article.translations.korean.length > 200 && (
-                            <button 
-                              onClick={() => {
-                                const updatedArticle = {...article, showFullKorean: !article.showFullKorean};
-                                setArticles(prev => prev.map(a => 
-                                  a.id === article.id ? updatedArticle : a
-                                ));
-                              }}
-                              className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
-                            >
-                              {article.showFullKorean ? 'Show less' : 'Read more'}
-                            </button>
-                          )}
-                        </p>
+                        {article.editingKorean ? (
+                          <div>
+                            <textarea
+                              value={article.translations.korean}
+                              onChange={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
+                              rows="4"
+                            />
+                            <div className="flex gap-2 mt-1">
+                              <button 
+                                onClick={() => setArticles(prev => prev.map(a => 
+                                  a.id === article.id ? {...a, editingKorean: false} : a
+                                ))}
+                                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-sm text-gray-700">
+                              {article.showFullKorean || article.translations.korean.length <= 200
+                                ? article.translations.korean
+                                : `${article.translations.korean.substring(0, 200)}...`
+                              }
+                            </p>
+                            <div className="flex gap-2 mt-1">
+                              {article.translations.korean.length > 200 && (
+                                <button 
+                                  onClick={() => {
+                                    const updatedArticle = {...article, showFullKorean: !article.showFullKorean};
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? updatedArticle : a
+                                    ));
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                                >
+                                  {article.showFullKorean ? 'Show less' : 'Read more'}
+                                </button>
+                              )}
+                              {article.status === 'translation_review' && (
+                                <button 
+                                  onClick={() => setArticles(prev => prev.map(a => 
+                                    a.id === article.id ? {...a, editingKorean: true} : a
+                                  ))}
+                                  className="text-purple-600 hover:text-purple-800 font-medium text-xs"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -517,6 +700,7 @@ export default function AAVMDashboard() {
               
               <div className="border-t pt-3 mt-3">
                 <div className="flex gap-2 flex-wrap">
+                  {/* Step 1: Generate Summary */}
                   {article.status === 'pending_synthesis' && (
                     <button 
                       onClick={() => handleGenerateSummary(article.id)}
@@ -533,7 +717,19 @@ export default function AAVMDashboard() {
                       Generating Summary...
                     </button>
                   )}
-                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.chinese && (
+
+                  {/* Step 2: Approve Summary for Translation */}
+                  {article.status === 'summary_review' && !article.editingSummary && (
+                    <button 
+                      onClick={() => handleApproveSummary(article.id)}
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                    >
+                      Approve Summary for Translation
+                    </button>
+                  )}
+
+                  {/* Step 3: Translation Buttons */}
+                  {article.status === 'ready_for_translation' && !article.translations.chinese && (
                     <button 
                       onClick={() => handleTranslateArticle(article.id, 'chinese')}
                       className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
@@ -541,7 +737,7 @@ export default function AAVMDashboard() {
                       Translate to Chinese
                     </button>
                   )}
-                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.korean && (
+                  {article.status === 'ready_for_translation' && !article.translations.korean && (
                     <button 
                       onClick={() => handleTranslateArticle(article.id, 'korean')}
                       className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
@@ -549,7 +745,27 @@ export default function AAVMDashboard() {
                       Translate to Korean
                     </button>
                   )}
-                  {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.imageGenerated && !article.imageGenerating && (
+                  {article.status === 'in_translation' && (
+                    <button 
+                      disabled
+                      className="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"
+                    >
+                      Translating...
+                    </button>
+                  )}
+
+                  {/* Step 4: Approve Translations */}
+                  {article.status === 'translation_review' && !article.editingChinese && !article.editingKorean && (
+                    <button 
+                      onClick={() => handleApproveTranslations(article.id)}
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                    >
+                      Approve Translations for Image
+                    </button>
+                  )}
+
+                  {/* Step 5: Generate Image */}
+                  {article.status === 'ready_for_image' && (
                     <button 
                       onClick={() => handleGenerateImage(article.id)}
                       className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
@@ -557,7 +773,7 @@ export default function AAVMDashboard() {
                       Generate AI Image
                     </button>
                   )}
-                  {article.imageGenerating && (
+                  {article.status === 'generating_image' && (
                     <button 
                       disabled
                       className="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"
@@ -565,6 +781,33 @@ export default function AAVMDashboard() {
                       Generating Image...
                     </button>
                   )}
+
+                  {/* Step 6: Regenerate Image or Approve for Publication */}
+                  {article.status === 'ready_for_publication' && (
+                    <>
+                      <button 
+                        onClick={() => handleGenerateImage(article.id)}
+                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                      >
+                        Regenerate Image
+                      </button>
+                      <button 
+                        onClick={() => handleApproveForPublication(article.id)}
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                      >
+                        Approve for Publication
+                      </button>
+                    </>
+                  )}
+
+                  {/* Final State: Published */}
+                  {article.status === 'published' && (
+                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
+                      ✓ Published
+                    </span>
+                  )}
+
+                  {/* Always show View Details */}
                   <button 
                     className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm flex items-center gap-1"
                     onClick={() => setSelectedArticle(article)}
