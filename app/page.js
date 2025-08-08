@@ -115,7 +115,7 @@ export default function AAVMDashboard() {
     ));
 
     try {
-      const response = await fetch('/api/ai', {
+      const response = await fetch(window.location.origin + '/api/ai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -177,7 +177,7 @@ export default function AAVMDashboard() {
     ));
 
     try {
-      const response = await fetch('/api/ai', {
+      const response = await fetch(window.location.origin + '/api/ai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
