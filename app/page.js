@@ -471,8 +471,8 @@ export default function AAVMDashboard() {
                         {article.editingSummary ? (
                           <div className="mt-2">
                             <textarea
-                              value={article.aiSummary.replace(/<br>/g, '\n')}
-                              onChange={(e) => handleEditSummary(article.id, e.target.value.replace(/\n/g, '<br>'))}
+                              value={article.aiSummary}
+                              onChange={(e) => handleEditSummary(article.id, e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none"
                               rows="6"
                               autoFocus
