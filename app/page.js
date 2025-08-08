@@ -249,6 +249,16 @@ export default function AAVMDashboard() {
   };
 
   const handleTranslateArticle = async (articleId, language) => {
+    // First, force save any pending edits
+    const currentArticle = articles.find(a => a.id === articleId);
+    if (currentArticle && currentArticle.editingSummary) {
+      const textarea = document.getElementById(`summary-edit-${articleId}`);
+      if (textarea) {
+        handleEditSummary(articleId, textarea.value.replace(/\n/g, '<br>'));
+      }
+    }
+
+    // Get the updated article after potential edits
     const article = articles.find(a => a.id === articleId);
     if (!article || !article.aiSummary) {
       alert('Please generate an AI summary first before translating.');
@@ -293,16 +303,19 @@ export default function AAVMDashboard() {
 
       const data = await response.json();
       
-      const updatedArticle = articles.find(a => a.id === articleId);
-      const bothTranslationsDone = language === 'chinese' 
-        ? updatedArticle.translations.korean && data.result
-        : updatedArticle.translations.chinese && data.result;
+      // Check if both translations will be done after this one
+      const currentArticle = articles.find(a => a.id === articleId);
+      const otherLanguage = language === 'chinese' ? 'korean' : 'chinese';
+      const otherTranslationExists = currentArticle.translations[otherLanguage] && 
+                                   currentArticle.translations[otherLanguage] !== 'Translating...';
+      
+      const bothTranslationsDone = otherTranslationExists && data.result;
 
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
               ...a, 
-              status: bothTranslationsDone ? 'translation_review' : 'in_translation',
+              status: bothTranslationsDone ? 'translation_review' : 'ready_for_translation',
               translations: {
                 ...a.translations,
                 [language]: data.result
