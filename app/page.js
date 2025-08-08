@@ -103,32 +103,123 @@ export default function AAVMDashboard() {
     ));
   };
 
-  const handleGenerateSummary = (articleId) => {
-    setArticles(prev => prev.map(article => 
-      article.id === articleId 
-        ? { 
-            ...article, 
-            status: 'ready_for_translation',
-            aiSummary: article.aiSummary || 'AI summary generated! This article has been processed and is ready for translation into Chinese and Korean.'
-          }
-        : article
+  const handleGenerateSummary = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    // Update status to show loading
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'generating_summary', aiSummary: 'Generating AI summary...' }
+        : a
     ));
+
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'summarize',
+          title: article.originalTitle,
+          content: article.aiSummary || `${article.originalTitle}. ${article.source}. This article needs a comprehensive summary.`
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate summary');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'ready_for_translation',
+              aiSummary: data.result
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'pending_synthesis',
+              aiSummary: 'Error generating summary. Please try again.'
+            }
+          : a
+      ));
+    }
   };
 
-  const handleTranslateArticle = (articleId, language) => {
-    setArticles(prev => prev.map(article => 
-      article.id === articleId 
+  const handleTranslateArticle = async (articleId, language) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article || !article.aiSummary) {
+      alert('Please generate an AI summary first before translating.');
+      return;
+    }
+
+    // Update to show loading
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
         ? { 
-            ...article, 
+            ...a, 
             translations: {
-              ...article.translations,
-              [language]: language === 'chinese' 
-                ? '此文章已翻译成中文。这是一个演示翻译，显示翻译功能正常工作。'
-                : '이 기사는 한국어로 번역되었습니다. 이것은 번역 기능이 제대로 작동함을 보여주는 데모 번역입니다.'
+              ...a.translations,
+              [language]: 'Translating...'
             }
           }
-        : article
+        : a
     ));
+
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'translate',
+          language: language,
+          summary: article.aiSummary
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to translate');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              translations: {
+                ...a.translations,
+                [language]: data.result
+              }
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error translating:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              translations: {
+                ...a.translations,
+                [language]: 'Error translating. Please try again.'
+              }
+            }
+          : a
+      ));
+    }
   };
 
   const handleGenerateImage = (articleId) => {
