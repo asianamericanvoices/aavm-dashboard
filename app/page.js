@@ -380,7 +380,23 @@ export default function AAVMDashboard() {
                     )}
                   </div>
                   <div className="flex gap-2 mt-3">
-                    {!article.translations.chinese && (
+                    {article.status === 'pending_synthesis' && (
+                      <button 
+                        onClick={() => handleGenerateSummary(article.id)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                      >
+                        Generate AI Summary
+                      </button>
+                    )}
+                    {article.status === 'generating_summary' && (
+                      <button 
+                        disabled
+                        className="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"
+                      >
+                        Generating Summary...
+                      </button>
+                    )}
+                    {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.chinese && (
                       <button 
                         onClick={() => handleTranslateArticle(article.id, 'chinese')}
                         className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
@@ -388,7 +404,7 @@ export default function AAVMDashboard() {
                         Translate to Chinese
                       </button>
                     )}
-                    {!article.translations.korean && (
+                    {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.translations.korean && (
                       <button 
                         onClick={() => handleTranslateArticle(article.id, 'korean')}
                         className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
@@ -396,7 +412,7 @@ export default function AAVMDashboard() {
                         Translate to Korean
                       </button>
                     )}
-                    {!article.imageGenerated && (
+                    {(article.status === 'ready_for_translation' || article.status === 'in_translation') && !article.imageGenerated && (
                       <button 
                         onClick={() => handleGenerateImage(article.id)}
                         className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
