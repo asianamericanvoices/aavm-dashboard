@@ -103,6 +103,42 @@ export default function AAVMDashboard() {
     ));
   };
 
+  const handleGenerateSummary = (articleId) => {
+    setArticles(prev => prev.map(article => 
+      article.id === articleId 
+        ? { 
+            ...article, 
+            status: 'ready_for_translation',
+            aiSummary: article.aiSummary || 'AI summary generated! This article has been processed and is ready for translation into Chinese and Korean.'
+          }
+        : article
+    ));
+  };
+
+  const handleTranslateArticle = (articleId, language) => {
+    setArticles(prev => prev.map(article => 
+      article.id === articleId 
+        ? { 
+            ...article, 
+            translations: {
+              ...article.translations,
+              [language]: language === 'chinese' 
+                ? '此文章已翻译成中文。这是一个演示翻译，显示翻译功能正常工作。'
+                : '이 기사는 한국어로 번역되었습니다. 이것은 번역 기능이 제대로 작동함을 보여주는 데모 번역입니다.'
+            }
+          }
+        : article
+    ));
+  };
+
+  const handleGenerateImage = (articleId) => {
+    setArticles(prev => prev.map(article => 
+      article.id === articleId 
+        ? { ...article, imageGenerated: true }
+        : article
+    ));
+  };
+
   const getTopicCounts = () => {
     const counts = {};
     articles.forEach(article => {
@@ -181,7 +217,18 @@ export default function AAVMDashboard() {
                   {article.aiSummary && (
                     <div className="bg-gray-50 p-3 rounded-lg mb-3">
                       <p className="text-sm text-gray-700">
-                        <strong>AI Summary:</strong> {article.aiSummary}
+                        <strong>AI Summary:</strong> {article.aiSummary.length > 200 
+                          ? `${article.aiSummary.substring(0, 200)}...` 
+                          : article.aiSummary
+                        }
+                        {article.aiSummary.length > 200 && (
+                          <button 
+                            onClick={() => setSelectedArticle(article)}
+                            className="text-blue-600 hover:text-blue-800 ml-1"
+                          >
+                            Read more
+                          </button>
+                        )}
                       </p>
                     </div>
                   )}
@@ -226,6 +273,32 @@ export default function AAVMDashboard() {
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Korean Translation:</h4>
                         <p className="text-sm text-gray-700 line-clamp-2">{article.translations.korean}</p>
                       </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    {!article.translations.chinese && (
+                      <button 
+                        onClick={() => handleTranslateArticle(article.id, 'chinese')}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      >
+                        Translate to Chinese
+                      </button>
+                    )}
+                    {!article.translations.korean && (
+                      <button 
+                        onClick={() => handleTranslateArticle(article.id, 'korean')}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                      >
+                        Translate to Korean
+                      </button>
+                    )}
+                    {!article.imageGenerated && (
+                      <button 
+                        onClick={() => handleGenerateImage(article.id)}
+                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                      >
+                        Generate AI Image
+                      </button>
                     )}
                   </div>
                 </div>
@@ -450,6 +523,15 @@ export default function AAVMDashboard() {
                   <p className="text-sm text-gray-600 mt-1">
                     Relevance Score: {selectedArticle.relevanceScore} • Priority: {selectedArticle.priority}
                   </p>
+                  <a 
+                    href={selectedArticle.originalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm mt-2"
+                  >
+                    <Globe className="w-4 h-4" />
+                    Read Original Article
+                  </a>
                 </div>
                 
                 {selectedArticle.aiSummary && (
@@ -471,6 +553,65 @@ export default function AAVMDashboard() {
                       <h4 className="font-medium text-gray-900 mb-2">Korean Translation</h4>
                       <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedArticle.translations.korean}</p>
                     </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2 pt-4 border-t">
+                  {selectedArticle.status === 'pending_synthesis' && (
+                    <button 
+                      onClick={() => {
+                        handleGenerateSummary(selectedArticle.id);
+                        setSelectedArticle({...selectedArticle, status: 'ready_for_translation'});
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Generate AI Summary
+                    </button>
+                  )}
+                  {!selectedArticle.translations.chinese && (
+                    <button 
+                      onClick={() => {
+                        handleTranslateArticle(selectedArticle.id, 'chinese');
+                        setSelectedArticle({
+                          ...selectedArticle, 
+                          translations: {
+                            ...selectedArticle.translations,
+                            chinese: '此文章已翻译成中文。这是一个演示翻译，显示翻译功能正常工作。'
+                          }
+                        });
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Translate to Chinese
+                    </button>
+                  )}
+                  {!selectedArticle.translations.korean && (
+                    <button 
+                      onClick={() => {
+                        handleTranslateArticle(selectedArticle.id, 'korean');
+                        setSelectedArticle({
+                          ...selectedArticle, 
+                          translations: {
+                            ...selectedArticle.translations,
+                            korean: '이 기사는 한국어로 번역되었습니다. 이것은 번역 기능이 제대로 작동함을 보여주는 데모 번역입니다.'
+                          }
+                        });
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Translate to Korean
+                    </button>
+                  )}
+                  {!selectedArticle.imageGenerated && (
+                    <button 
+                      onClick={() => {
+                        handleGenerateImage(selectedArticle.id);
+                        setSelectedArticle({...selectedArticle, imageGenerated: true});
+                      }}
+                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                    >
+                      Generate AI Image
+                    </button>
                   )}
                 </div>
               </div>
