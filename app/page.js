@@ -18,6 +18,44 @@ export default function AAVMDashboard() {
   const [activeTab, setActiveTab] = useState('pipeline');
   const [selectedArticle, setSelectedArticle] = useState(null);
 
+  // Function to get better author display
+  const getAuthorDisplay = (author, source) => {
+    // If we have a real author name that's not placeholder text
+    if (author && 
+        author !== 'N/A' && 
+        author !== 'Unknown' && 
+        author !== 'Staff' &&
+        author.trim().length > 0 &&
+        !author.toLowerCase().includes('editor') &&
+        !author.toLowerCase().includes('staff writer')) {
+      return author;
+    }
+    
+    // Return source-specific staff attribution
+    switch (source?.toLowerCase()) {
+      case 'reuters':
+        return 'Reuters Staff';
+      case 'ap news':
+      case 'associated press':
+        return 'AP Staff';
+      case 'usa today':
+        return 'USA Today Staff';
+      case 'nbc news':
+        return 'NBC News Staff';
+      case 'abc news':
+        return 'ABC News Staff';
+      case 'bloomberg':
+      case 'bloomberg business':
+        return 'Bloomberg Staff';
+      case 'politico':
+        return 'Politico Staff';
+      case 'npr':
+        return 'NPR Staff';
+      default:
+        return 'Staff Writer';
+    }
+  };
+
   // Load real data from JSON file
   useEffect(() => {
     fetch('/dashboard_data.json')
@@ -318,16 +356,21 @@ export default function AAVMDashboard() {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{article.originalTitle}</h3>
                   <p className="text-sm text-gray-600 mb-2">
-                    By {article.author && article.author !== 'N/A' ? article.author : 'Staff Writer'}
+                    By {getAuthorDisplay(article.author, article.source)}
                   </p>
                   
                   {article.aiSummary && (
                     <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                      <p className="text-sm text-gray-700">
-                        <strong>AI Summary:</strong> {article.showFullSummary || article.aiSummary.length <= 300
-                          ? article.aiSummary
-                          : `${article.aiSummary.substring(0, 300)}...`
-                        }
+                      <div className="text-sm text-gray-700">
+                        <strong>AI Summary:</strong> 
+                        <div 
+                          className="mt-1"
+                          dangerouslySetInnerHTML={{
+                            __html: article.showFullSummary || article.aiSummary.length <= 300
+                              ? article.aiSummary
+                              : `${article.aiSummary.substring(0, 300)}...`
+                          }}
+                        />
                         {article.aiSummary.length > 300 && (
                           <button 
                             onClick={() => {
@@ -336,12 +379,12 @@ export default function AAVMDashboard() {
                                 a.id === article.id ? updatedArticle : a
                               ));
                             }}
-                            className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
+                            className="text-blue-600 hover:text-blue-800 ml-2 font-medium mt-1 inline-block"
                           >
                             {article.showFullSummary ? 'Show less' : 'Read more'}
                           </button>
                         )}
-                      </p>
+                      </div>
                     </div>
                   )}
                   
@@ -699,7 +742,7 @@ export default function AAVMDashboard() {
                 <div>
                   <h3 className="font-semibold text-gray-900">{selectedArticle.originalTitle}</h3>
                   <p className="text-sm text-gray-600">
-                    {selectedArticle.source} • {selectedArticle.author && selectedArticle.author !== 'N/A' ? selectedArticle.author : 'Staff Writer'} • {selectedArticle.scrapedDate}
+                    {selectedArticle.source} • {getAuthorDisplay(selectedArticle.author, selectedArticle.source)} • {selectedArticle.scrapedDate}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
                     Relevance Score: {selectedArticle.relevanceScore} • Priority: {selectedArticle.priority}
@@ -718,7 +761,10 @@ export default function AAVMDashboard() {
                 {selectedArticle.aiSummary && (
                   <div>
                     <h4 className="font-medium text-gray-900 mb-2">AI Summary</h4>
-                    <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedArticle.aiSummary}</p>
+                    <div 
+                      className="text-gray-700 bg-gray-50 p-3 rounded-lg"
+                      dangerouslySetInnerHTML={{ __html: selectedArticle.aiSummary }}
+                    />
                   </div>
                 )}
                 
