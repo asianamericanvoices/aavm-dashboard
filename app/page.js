@@ -1,7 +1,678 @@
-{article.titleTranslations?.korean && (
-                            <div className="mt-1">
-                              <span className="text-xs text-gray-500">Korean:</span>
-                              <div className="font-medium text-gray-900">{article.titleTranslations.korean}</div>
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap } from 'lucide-react';
+
+export default function AAVMDashboard() {
+  const [articles, setArticles] = useState([]);
+  const [analytics, setAnalytics] = useState({
+    articles_scraped_today: 0,
+    pending_translation: 0,
+    published_articles: 0,
+    total_articles: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [activeTab, setActiveTab] = useState('pipeline');
+  const [selectedArticle, setSelectedArticle] = useState(null);
+
+  const getAuthorDisplay = (author, source) => {
+    if (author && 
+        author !== 'N/A' && 
+        author !== 'Unknown' && 
+        author !== 'Staff' &&
+        author.trim().length > 0 &&
+        !author.toLowerCase().includes('editor') &&
+        !author.toLowerCase().includes('staff writer')) {
+      return author;
+    }
+    
+    switch (source?.toLowerCase()) {
+      case 'reuters':
+        return 'Reuters Staff';
+      case 'ap news':
+      case 'associated press':
+        return 'AP Staff';
+      case 'usa today':
+        return 'USA Today Staff';
+      case 'nbc news':
+        return 'NBC News Staff';
+      case 'abc news':
+        return 'ABC News Staff';
+      case 'bloomberg':
+      case 'bloomberg business':
+        return 'Bloomberg Staff';
+      case 'politico':
+        return 'Politico Staff';
+      case 'npr':
+        return 'NPR Staff';
+      default:
+        return 'Staff Writer';
+    }
+  };
+
+  useEffect(() => {
+    fetch('/dashboard_data.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Dashboard data not found');
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Loaded dashboard data:', data);
+        setArticles(data.articles || []);
+        setAnalytics(data.analytics || {
+          articles_scraped_today: 0,
+          pending_translation: 0,
+          published_articles: 0,
+          total_articles: 0
+        });
+        setLastUpdated(data.last_updated || '');
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error loading dashboard data:', error);
+        setSampleData();
+        setLoading(false);
+      });
+  }, []);
+
+  const setSampleData = () => {
+    setArticles([
+      {
+        id: 1,
+        originalTitle: "Sample Article - Upload dashboard_data.json to see real data",
+        source: "Sample Source",
+        author: "Sample Author",
+        scrapedDate: "2025-08-07",
+        originalUrl: "https://example.com",
+        status: "pending_synthesis",
+        topic: "Sample",
+        aiSummary: "This is sample data. Upload your dashboard_data.json file to GitHub to see your real scraped articles here.",
+        translations: { chinese: null, korean: null },
+        imageGenerated: false,
+        priority: "medium",
+        relevanceScore: 5.0
+      }
+    ]);
+    setAnalytics({
+      articles_scraped_today: 0,
+      pending_translation: 0,
+      published_articles: 0,
+      total_articles: 1
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'pending_synthesis': return 'text-yellow-600 bg-yellow-100';
+      case 'generating_title': return 'text-blue-600 bg-blue-100';
+      case 'title_review': return 'text-purple-600 bg-purple-100';
+      case 'generating_summary': return 'text-blue-600 bg-blue-100';
+      case 'summary_review': return 'text-purple-600 bg-purple-100';
+      case 'ready_for_translation': return 'text-orange-600 bg-orange-100';
+      case 'in_translation': return 'text-indigo-600 bg-indigo-100';
+      case 'translation_review': return 'text-pink-600 bg-pink-100';
+      case 'ready_for_image': return 'text-teal-600 bg-teal-100';
+      case 'generating_image': return 'text-cyan-600 bg-cyan-100';
+      case 'ready_for_publication': return 'text-green-600 bg-green-100';
+      case 'published': return 'text-emerald-600 bg-emerald-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'pending_synthesis': return <Clock className="w-4 h-4" />;
+      case 'generating_title': return <Zap className="w-4 h-4 animate-spin" />;
+      case 'title_review': return <Edit3 className="w-4 h-4" />;
+      case 'generating_summary': return <Clock className="w-4 h-4 animate-spin" />;
+      case 'summary_review': return <Edit3 className="w-4 h-4" />;
+      case 'ready_for_translation': return <Globe className="w-4 h-4" />;
+      case 'in_translation': return <Globe className="w-4 h-4 animate-pulse" />;
+      case 'translation_review': return <Edit3 className="w-4 h-4" />;
+      case 'ready_for_image': return <AlertCircle className="w-4 h-4" />;
+      case 'generating_image': return <AlertCircle className="w-4 h-4 animate-spin" />;
+      case 'ready_for_publication': return <CheckCircle className="w-4 h-4" />;
+      case 'published': return <CheckCircle className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
+    }
+  };
+
+  const handleGenerateTitle = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'generating_title', generatingTitle: true }
+        : a
+    ));
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'generate_title',
+          title: article.originalTitle,
+          source: article.source
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate title');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'title_review',
+              aiTitle: data.result,
+              generatingTitle: false,
+              editingTitle: false
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error generating title:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'pending_synthesis',
+              generatingTitle: false,
+              aiTitle: `Error: ${error.message}. Please try again.`
+            }
+          : a
+      ));
+    }
+  };
+
+  const handleEditTitle = (articleId, newTitle) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, aiTitle: newTitle }
+        : a
+    ));
+  };
+
+  const handleApproveTitle = (articleId) => {
+    console.log('🟢 APPROVE TITLE CLICKED for article:', articleId);
+    
+    setArticles(prev => {
+      const updated = prev.map(a => {
+        if (a.id === articleId) {
+          console.log('📝 Updating article status from:', a.status, 'to: pending_synthesis (for summary)');
+          return {
+            ...a, 
+            status: 'pending_synthesis', 
+            editingTitle: false,
+            // Keep both titles for reference
+            displayTitle: a.aiTitle || a.originalTitle
+          };
+        }
+        return a;
+      });
+      
+      const updatedArticle = updated.find(a => a.id === articleId);
+      console.log('✅ Article after title approval:', {
+        id: updatedArticle.id,
+        status: updatedArticle.status,
+        displayTitle: updatedArticle.displayTitle,
+        editingTitle: updatedArticle.editingTitle
+      });
+      
+      return updated;
+    });
+  };
+
+  const handleGenerateSummary = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'generating_summary', aiSummary: 'Generating AI summary...' }
+        : a
+    ));
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'summarize',
+          title: article.displayTitle || article.aiTitle || article.originalTitle,
+          source: article.source,
+          content: `${article.displayTitle || article.aiTitle || article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. This article needs a comprehensive summary.`
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate summary');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'summary_review',
+              aiSummary: data.result,
+              editingSummary: false
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'pending_synthesis',
+              aiSummary: 'Error generating summary. Please try again.'
+            }
+          : a
+      ));
+    }
+  };
+
+  const handleEditSummary = (articleId, newSummary) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, aiSummary: newSummary }
+        : a
+    ));
+  };
+
+  const handleApproveSummary = (articleId) => {
+    console.log('🟢 APPROVE SUMMARY CLICKED for article:', articleId);
+    
+    setArticles(prev => {
+      const updated = prev.map(a => {
+        if (a.id === articleId) {
+          console.log('📝 Updating article status from:', a.status, 'to: ready_for_translation');
+          return {
+            ...a, 
+            status: 'ready_for_translation', 
+            editingSummary: false
+          };
+        }
+        return a;
+      });
+      
+      const updatedArticle = updated.find(a => a.id === articleId);
+      console.log('✅ Article after update:', {
+        id: updatedArticle.id,
+        status: updatedArticle.status,
+        editingSummary: updatedArticle.editingSummary
+      });
+      
+      return updated;
+    });
+  };
+
+  const handleEditTranslation = (articleId, language, newTranslation) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { 
+            ...a, 
+            translations: {
+              ...a.translations,
+              [language]: newTranslation
+            }
+          }
+        : a
+    ));
+  };
+
+  const handleApproveTranslations = (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (article && article.translations.chinese && article.translations.korean) {
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'ready_for_image',
+              editingTranslations: false
+            }
+          : a
+      ));
+    }
+  };
+
+  const handleApproveForPublication = (articleId) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'published' }
+        : a
+    ));
+  };
+
+  const handleTranslateArticle = async (articleId, language) => {
+    // First, force save any pending edits
+    const currentArticle = articles.find(a => a.id === articleId);
+    if (currentArticle && currentArticle.editingSummary) {
+      const textarea = document.getElementById(`summary-edit-${articleId}`);
+      if (textarea) {
+        console.log('SAVING EDITS - Textarea value:', textarea.value.substring(0, 50) + '...');
+        handleEditSummary(articleId, textarea.value.replace(/\n/g, '<br>'));
+        // Add a small delay to ensure state updates
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    // Get the updated article after potential edits
+    const article = articles.find(a => a.id === articleId);
+    if (!article || !article.aiSummary) {
+      alert('Please generate an AI summary first before translating.');
+      return;
+    }
+
+    console.log(`🔍 TRANSLATION DEBUG - ${language.toUpperCase()}:`);
+    console.log('Article ID:', articleId);
+    console.log('Summary being sent:', article.aiSummary.substring(0, 100) + '...');
+    console.log('Full summary length:', article.aiSummary.length);
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { 
+            ...a, 
+            status: 'in_translation',
+            translations: {
+              ...a.translations,
+              [language]: 'Translating...'
+            }
+          }
+        : a
+    ));
+
+    try {
+      const summaryText = article.aiSummary.replace(/<br>/g, '\n');
+      console.log('📤 Sending to API:', summaryText.substring(0, 100) + '...');
+      
+      const requestBody = {
+        action: 'translate',
+        language: language,
+        summary: summaryText
+      };
+
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to translate: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      // Check if both translations will be done after this one
+      const currentArticle = articles.find(a => a.id === articleId);
+      const otherLanguage = language === 'chinese' ? 'korean' : 'chinese';
+      const otherTranslationExists = currentArticle.translations[otherLanguage] && 
+                                   currentArticle.translations[otherLanguage] !== 'Translating...';
+      
+      const bothTranslationsDone = otherTranslationExists && data.result;
+
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: bothTranslationsDone ? 'translation_review' : 'ready_for_translation',
+              translations: {
+                ...a.translations,
+                [language]: data.result
+              }
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error translating:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'ready_for_translation',
+              translations: {
+                ...a.translations,
+                [language]: `Error: ${error.message}. Please try again.`
+              }
+            }
+          : a
+      ));
+    }
+  };
+
+  const handleGenerateImage = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, status: 'generating_image', imageGenerating: true }
+        : a
+    ));
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'generate_image',
+          title: article.displayTitle || article.aiTitle || article.originalTitle,
+          source: article.source
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate image');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'ready_for_publication',
+              imageGenerated: true,
+              imageGenerating: false,
+              imageUrl: data.result
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error generating image:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'ready_for_image',
+              imageGenerating: false,
+              imageUrl: null
+            }
+          : a
+      ));
+      alert('Failed to generate image. Please try again.');
+    }
+  };
+
+  const getTopicCounts = () => {
+    const counts = {};
+    articles.forEach(article => {
+      counts[article.topic] = (counts[article.topic] || 0) + 1;
+    });
+    return counts;
+  };
+
+  const getPriorityPercentages = () => {
+    const total = articles.length;
+    if (total === 0) return { high: 0, medium: 0, low: 0 };
+    
+    const counts = { high: 0, medium: 0, low: 0 };
+    articles.forEach(article => {
+      counts[article.priority] = (counts[article.priority] || 0) + 1;
+    });
+    
+    return {
+      high: Math.round((counts.high / total) * 100),
+      medium: Math.round((counts.medium / total) * 100),
+      low: Math.round((counts.low / total) * 100)
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const ArticlePipeline = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Content Pipeline</h2>
+          {lastUpdated && (
+            <p className="text-sm text-gray-500">
+              Last updated: {new Date(lastUpdated).toLocaleString()}
+            </p>
+          )}
+        </div>
+        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          Manual Add Article
+        </button>
+      </div>
+      
+      {articles.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Articles Found</h3>
+          <p className="text-gray-600">Upload your dashboard_data.json file to GitHub to see your scraped articles here.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {articles.map(article => (
+            <div key={article.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(article.status)}`}>
+                      {getStatusIcon(article.status)}
+                      {article.status.replace('_', ' ')}
+                    </span>
+                    <span className="text-xs text-gray-500">{article.source}</span>
+                    <span className="text-xs text-gray-500">•</span>
+                    <span className="text-xs text-gray-500">{article.scrapedDate}</span>
+                  </div>
+                  
+                  {/* Title Section */}
+                  <div className="mb-3">
+                    <div className="mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {article.displayTitle || article.aiTitle || article.originalTitle}
+                      </h3>
+                      {(article.aiTitle || article.displayTitle) && article.originalTitle !== (article.displayTitle || article.aiTitle) && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Original: {article.originalTitle}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {article.aiTitle && article.status === 'title_review' && (
+                      <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                        <div className="text-sm text-gray-700">
+                          <strong>AI-Generated Title:</strong>
+                          {article.editingTitle ? (
+                            <div className="mt-2">
+                              <input
+                                id={`title-edit-${article.id}`}
+                                type="text"
+                                defaultValue={article.aiTitle}
+                                onBlur={(e) => handleEditTitle(article.id, e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded text-base font-medium"
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <button 
+                                  onClick={() => {
+                                    console.log('APPROVE TITLE BUTTON CLICKED!', article.id);
+                                    const input = document.getElementById(`title-edit-${article.id}`);
+                                    console.log('Input found:', !!input);
+                                    if (input) {
+                                      console.log('Input value:', input.value);
+                                      handleEditTitle(article.id, input.value);
+                                      handleApproveTitle(article.id);
+                                    }
+                                  }}
+                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                                >
+                                  Approve Title
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    console.log('CANCEL TITLE BUTTON CLICKED!', article.id);
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingTitle: false} : a
+                                    ));
+                                  }}
+                                  className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="mt-1 font-medium text-gray-900">
+                                {article.aiTitle}
+                              </div>
+                              <div className="flex gap-2 mt-2">
+                                <button 
+                                  onClick={() => handleApproveTitle(article.id)}
+                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                                >
+                                  Approve Title
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingTitle: true} : a
+                                    ));
+                                  }}
+                                  className="text-purple-600 hover:text-purple-800 font-medium text-xs"
+                                >
+                                  Edit Title
+                                </button>
+                                <button 
+                                  onClick={() => handleGenerateTitle(article.id)}
+                                  className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                                >
+                                  Regenerate
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -128,7 +799,6 @@
                 </div>
               </div>
               
-              {/* ENHANCED: Translations with formatting */}
               {(article.translations.chinese || article.translations.korean) && (
                 <div className="border-t pt-3 mt-3">
                   <div className="space-y-3">
@@ -139,8 +809,8 @@
                           <div>
                             <textarea
                               id={`chinese-edit-${article.id}`}
-                              defaultValue={article.translations.chinese.replace(/<br>/g, '\n')}
-                              onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value.replace(/\n/g, '<br>'))}
+                              defaultValue={article.translations.chinese}
+                              onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
                             />
@@ -150,7 +820,7 @@
                                   e.preventDefault();
                                   const textarea = document.getElementById(`chinese-edit-${article.id}`);
                                   if (textarea) {
-                                    handleEditTranslation(article.id, 'chinese', textarea.value.replace(/\n/g, '<br>'));
+                                    handleEditTranslation(article.id, 'chinese', textarea.value);
                                     setArticles(prev => prev.map(a => 
                                       a.id === article.id ? {...a, editingChinese: false} : a
                                     ));
@@ -164,14 +834,12 @@
                           </div>
                         ) : (
                           <div>
-                            <div 
-                              className="text-sm text-gray-700"
-                              dangerouslySetInnerHTML={{
-                                __html: article.showFullChinese || article.translations.chinese.length <= 200
-                                  ? article.translations.chinese
-                                  : `${article.translations.chinese.substring(0, 200)}...`
-                              }}
-                            />
+                            <p className="text-sm text-gray-700">
+                              {article.showFullChinese || article.translations.chinese.length <= 200
+                                ? article.translations.chinese
+                                : `${article.translations.chinese.substring(0, 200)}...`
+                              }
+                            </p>
                             <div className="flex gap-2 mt-1">
                               {article.translations.chinese.length > 200 && (
                                 <button 
@@ -228,8 +896,8 @@
                           <div>
                             <textarea
                               id={`korean-edit-${article.id}`}
-                              defaultValue={article.translations.korean.replace(/<br>/g, '\n')}
-                              onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value.replace(/\n/g, '<br>'))}
+                              defaultValue={article.translations.korean}
+                              onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                               rows="4"
                             />
@@ -239,7 +907,7 @@
                                   e.preventDefault();
                                   const textarea = document.getElementById(`korean-edit-${article.id}`);
                                   if (textarea) {
-                                    handleEditTranslation(article.id, 'korean', textarea.value.replace(/\n/g, '<br>'));
+                                    handleEditTranslation(article.id, 'korean', textarea.value);
                                     setArticles(prev => prev.map(a => 
                                       a.id === article.id ? {...a, editingKorean: false} : a
                                     ));
@@ -253,14 +921,12 @@
                           </div>
                         ) : (
                           <div>
-                            <div 
-                              className="text-sm text-gray-700"
-                              dangerouslySetInnerHTML={{
-                                __html: article.showFullKorean || article.translations.korean.length <= 200
-                                  ? article.translations.korean
-                                  : `${article.translations.korean.substring(0, 200)}...`
-                              }}
-                            />
+                            <p className="text-sm text-gray-700">
+                              {article.showFullKorean || article.translations.korean.length <= 200
+                                ? article.translations.korean
+                                : `${article.translations.korean.substring(0, 200)}...`
+                              }
+                            </p>
                             <div className="flex gap-2 mt-1">
                               {article.translations.korean.length > 200 && (
                                 <button 
@@ -314,7 +980,6 @@
                 </div>
               )}
               
-              {/* ENHANCED: Action buttons with new title generation */}
               <div className="border-t pt-3 mt-3">
                 <div className="flex gap-2 flex-wrap">
                   {article.status === 'pending_synthesis' && (
@@ -655,7 +1320,6 @@
         )}
       </div>
 
-      {/* ENHANCED: Modal with title translations */}
       {selectedArticle && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -702,27 +1366,6 @@
                   </a>
                 </div>
                 
-                {/* NEW: Title translations in modal */}
-                {(selectedArticle.titleTranslations?.chinese || selectedArticle.titleTranslations?.korean) && (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Title Translations</h4>
-                    <div className="bg-indigo-50 p-3 rounded-lg">
-                      {selectedArticle.titleTranslations?.chinese && (
-                        <div className="mb-2">
-                          <span className="text-xs text-gray-500">Chinese:</span>
-                          <div className="font-medium text-gray-900">{selectedArticle.titleTranslations.chinese}</div>
-                        </div>
-                      )}
-                      {selectedArticle.titleTranslations?.korean && (
-                        <div>
-                          <span className="text-xs text-gray-500">Korean:</span>
-                          <div className="font-medium text-gray-900">{selectedArticle.titleTranslations.korean}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
                 {selectedArticle.imageUrl && (
                   <div>
                     <h4 className="font-medium text-gray-900 mb-2">Generated Image</h4>
@@ -748,19 +1391,13 @@
                   {selectedArticle.translations.chinese && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-2">Chinese Translation</h4>
-                      <div 
-                        className="text-gray-700 bg-gray-50 p-3 rounded-lg"
-                        dangerouslySetInnerHTML={{ __html: selectedArticle.translations.chinese }}
-                      />
+                      <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedArticle.translations.chinese}</p>
                     </div>
                   )}
                   {selectedArticle.translations.korean && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-2">Korean Translation</h4>
-                      <div 
-                        className="text-gray-700 bg-gray-50 p-3 rounded-lg"
-                        dangerouslySetInnerHTML={{ __html: selectedArticle.translations.korean }}
-                      />
+                      <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedArticle.translations.korean}</p>
                     </div>
                   )}
                 </div>
@@ -771,803 +1408,4 @@
       )}
     </div>
   );
-}'use client';
-
-import React, { useState, useEffect } from 'react';
-import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap } from 'lucide-react';
-
-export default function AAVMDashboard() {
-  const [articles, setArticles] = useState([]);
-  const [analytics, setAnalytics] = useState({
-    articles_scraped_today: 0,
-    pending_translation: 0,
-    published_articles: 0,
-    total_articles: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState('');
-  const [activeTab, setActiveTab] = useState('pipeline');
-  const [selectedArticle, setSelectedArticle] = useState(null);
-
-  const getAuthorDisplay = (author, source) => {
-    if (author && 
-        author !== 'N/A' && 
-        author !== 'Unknown' && 
-        author !== 'Staff' &&
-        author.trim().length > 0 &&
-        !author.toLowerCase().includes('editor') &&
-        !author.toLowerCase().includes('staff writer')) {
-      return author;
-    }
-    
-    switch (source?.toLowerCase()) {
-      case 'reuters':
-        return 'Reuters Staff';
-      case 'ap news':
-      case 'associated press':
-        return 'AP Staff';
-      case 'usa today':
-        return 'USA Today Staff';
-      case 'nbc news':
-        return 'NBC News Staff';
-      case 'abc news':
-        return 'ABC News Staff';
-      case 'bloomberg':
-      case 'bloomberg business':
-        return 'Bloomberg Staff';
-      case 'politico':
-        return 'Politico Staff';
-      case 'npr':
-        return 'NPR Staff';
-      default:
-        return 'Staff Writer';
-    }
-  };
-
-  useEffect(() => {
-    fetch('/dashboard_data.json')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Dashboard data not found');
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log('Loaded dashboard data:', data);
-        setArticles(data.articles || []);
-        setAnalytics(data.analytics || {
-          articles_scraped_today: 0,
-          pending_translation: 0,
-          published_articles: 0,
-          total_articles: 0
-        });
-        setLastUpdated(data.last_updated || '');
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error loading dashboard data:', error);
-        setSampleData();
-        setLoading(false);
-      });
-  }, []);
-
-  const setSampleData = () => {
-    setArticles([
-      {
-        id: 1,
-        originalTitle: "Sample Article - Upload dashboard_data.json to see real data",
-        source: "Sample Source",
-        author: "Sample Author",
-        scrapedDate: "2025-08-07",
-        originalUrl: "https://example.com",
-        status: "pending_synthesis",
-        topic: "Sample",
-        aiSummary: "This is sample data. Upload your dashboard_data.json file to GitHub to see your real scraped articles here.",
-        translations: { chinese: null, korean: null },
-        imageGenerated: false,
-        priority: "medium",
-        relevanceScore: 5.0
-      }
-    ]);
-    setAnalytics({
-      articles_scraped_today: 0,
-      pending_translation: 0,
-      published_articles: 0,
-      total_articles: 1
-    });
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'pending_synthesis': return 'text-yellow-600 bg-yellow-100';
-      case 'generating_title': return 'text-blue-600 bg-blue-100';
-      case 'title_review': return 'text-purple-600 bg-purple-100';
-      case 'generating_summary': return 'text-blue-600 bg-blue-100';
-      case 'summary_review': return 'text-purple-600 bg-purple-100';
-      case 'ready_for_translation': return 'text-orange-600 bg-orange-100';
-      case 'in_translation': return 'text-indigo-600 bg-indigo-100';
-      case 'translation_review': return 'text-pink-600 bg-pink-100';
-      case 'ready_for_image': return 'text-teal-600 bg-teal-100';
-      case 'generating_image': return 'text-cyan-600 bg-cyan-100';
-      case 'ready_for_publication': return 'text-green-600 bg-green-100';
-      case 'published': return 'text-emerald-600 bg-emerald-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch(status) {
-      case 'pending_synthesis': return <Clock className="w-4 h-4" />;
-      case 'generating_title': return <Zap className="w-4 h-4 animate-spin" />;
-      case 'title_review': return <Edit3 className="w-4 h-4" />;
-      case 'generating_summary': return <Clock className="w-4 h-4 animate-spin" />;
-      case 'summary_review': return <Edit3 className="w-4 h-4" />;
-      case 'ready_for_translation': return <Globe className="w-4 h-4" />;
-      case 'in_translation': return <Globe className="w-4 h-4 animate-pulse" />;
-      case 'translation_review': return <Edit3 className="w-4 h-4" />;
-      case 'ready_for_image': return <AlertCircle className="w-4 h-4" />;
-      case 'generating_image': return <AlertCircle className="w-4 h-4 animate-spin" />;
-      case 'ready_for_publication': return <CheckCircle className="w-4 h-4" />;
-      case 'published': return <CheckCircle className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
-    }
-  };
-
-  // NEW: Title generation function
-  const handleGenerateTitle = async (articleId) => {
-    const article = articles.find(a => a.id === articleId);
-    if (!article) return;
-
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, status: 'generating_title', generatingTitle: true }
-        : a
-    ));
-
-    try {
-      const response = await fetch(window.location.origin + '/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'generate_title',
-          title: article.originalTitle,
-          source: article.source
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate title');
-      }
-
-      const data = await response.json();
-      
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'title_review',
-              aiTitle: data.result,
-              generatingTitle: false,
-              editingTitle: false
-            }
-          : a
-      ));
-    } catch (error) {
-      console.error('Error generating title:', error);
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'pending_synthesis',
-              generatingTitle: false,
-              aiTitle: `Error: ${error.message}. Please try again.`
-            }
-          : a
-      ));
-    }
-  };
-
-  // NEW: Title editing function
-  const handleEditTitle = (articleId, newTitle) => {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, aiTitle: newTitle }
-        : a
-    ));
-  };
-
-  // NEW: Title approval function
-  const handleApproveTitle = (articleId) => {
-    console.log('🟢 APPROVE TITLE CLICKED for article:', articleId);
-    
-    setArticles(prev => {
-      const updated = prev.map(a => {
-        if (a.id === articleId) {
-          console.log('📝 Updating article status from:', a.status, 'to: pending_synthesis (for summary)');
-          return {
-            ...a, 
-            status: 'pending_synthesis', 
-            editingTitle: false,
-            // Keep both titles for reference
-            displayTitle: a.aiTitle || a.originalTitle
-          };
-        }
-        return a;
-      });
-      
-      const updatedArticle = updated.find(a => a.id === articleId);
-      console.log('✅ Article after title approval:', {
-        id: updatedArticle.id,
-        status: updatedArticle.status,
-        displayTitle: updatedArticle.displayTitle,
-        editingTitle: updatedArticle.editingTitle
-      });
-      
-      return updated;
-    });
-  };
-
-  // NEW: Title translation function
-  const handleTranslateTitle = async (articleId, language) => {
-    const article = articles.find(a => a.id === articleId);
-    if (!article || (!article.aiTitle && !article.displayTitle)) {
-      alert('Please generate or approve a title first before translating.');
-      return;
-    }
-
-    const titleToTranslate = article.displayTitle || article.aiTitle;
-    console.log(`🔍 TITLE TRANSLATION DEBUG - ${language.toUpperCase()}:`);
-    console.log('Article ID:', articleId);
-    console.log('Title being translated:', titleToTranslate);
-
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { 
-            ...a, 
-            titleTranslations: {
-              ...a.titleTranslations,
-              [language]: 'Translating title...'
-            }
-          }
-        : a
-    ));
-
-    try {
-      const response = await fetch(window.location.origin + '/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'translate_title',
-          title: titleToTranslate,
-          language: language
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to translate title: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              titleTranslations: {
-                ...a.titleTranslations,
-                [language]: data.result
-              }
-            }
-          : a
-      ));
-    } catch (error) {
-      console.error('Error translating title:', error);
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              titleTranslations: {
-                ...a.titleTranslations,
-                [language]: `Error: ${error.message}`
-              }
-            }
-          : a
-      ));
-    }
-  };
-
-  // ENHANCED: Summary generation with content validation
-  const handleGenerateSummary = async (articleId) => {
-    const article = articles.find(a => a.id === articleId);
-    if (!article) return;
-
-    // Check if we have actual article content beyond just title/source/date
-    const hasRealContent = article.content && article.content.length > 100;
-    const hasFullText = article.fullText && article.fullText.length > 100;
-    
-    if (!hasRealContent && !hasFullText) {
-      alert('❌ Cannot generate summary: This article only contains title/source/date metadata.\n\nTo generate accurate summaries and prevent fabricated content, we need the full article text. Please update your scraping system to capture the complete article content in a "content" or "fullText" field.');
-      return;
-    }
-
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, status: 'generating_summary', aiSummary: 'Generating AI summary...' }
-        : a
-    ));
-
-    try {
-      const articleContent = article.content || article.fullText;
-      
-      const response = await fetch(window.location.origin + '/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'summarize',
-          title: article.displayTitle || article.aiTitle || article.originalTitle,
-          source: article.source,
-          // Use the actual full article content
-          content: articleContent
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate summary');
-      }
-
-      const data = await response.json();
-      
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'summary_review',
-              aiSummary: data.result,
-              editingSummary: false
-            }
-          : a
-      ));
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'pending_synthesis',
-              aiSummary: `❌ Error: ${error.message}`
-            }
-          : a
-      ));
-    }
-  };
-
-  const handleEditSummary = (articleId, newSummary) => {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, aiSummary: newSummary }
-        : a
-    ));
-  };
-
-  const handleApproveSummary = (articleId) => {
-    console.log('🟢 APPROVE SUMMARY CLICKED for article:', articleId);
-    
-    setArticles(prev => {
-      const updated = prev.map(a => {
-        if (a.id === articleId) {
-          console.log('📝 Updating article status from:', a.status, 'to: ready_for_translation');
-          return {
-            ...a, 
-            status: 'ready_for_translation', 
-            editingSummary: false
-          };
-        }
-        return a;
-      });
-      
-      const updatedArticle = updated.find(a => a.id === articleId);
-      console.log('✅ Article after update:', {
-        id: updatedArticle.id,
-        status: updatedArticle.status,
-        editingSummary: updatedArticle.editingSummary
-      });
-      
-      return updated;
-    });
-  };
-
-  const handleEditTranslation = (articleId, language, newTranslation) => {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { 
-            ...a, 
-            translations: {
-              ...a.translations,
-              [language]: newTranslation
-            }
-          }
-        : a
-    ));
-  };
-
-  const handleApproveTranslations = (articleId) => {
-    const article = articles.find(a => a.id === articleId);
-    if (article && article.translations.chinese && article.translations.korean) {
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'ready_for_image',
-              editingTranslations: false
-            }
-          : a
-      ));
-    }
-  };
-
-  const handleApproveForPublication = (articleId) => {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, status: 'published' }
-        : a
-    ));
-  };
-
-  // ENHANCED: Translation with paragraph formatting
-  const handleTranslateArticle = async (articleId, language) => {
-    // First, force save any pending edits
-    const currentArticle = articles.find(a => a.id === articleId);
-    if (currentArticle && currentArticle.editingSummary) {
-      const textarea = document.getElementById(`summary-edit-${articleId}`);
-      if (textarea) {
-        console.log('SAVING EDITS - Textarea value:', textarea.value.substring(0, 50) + '...');
-        handleEditSummary(articleId, textarea.value.replace(/\n/g, '<br>'));
-        // Add a small delay to ensure state updates
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    // Get the updated article after potential edits
-    const article = articles.find(a => a.id === articleId);
-    if (!article || !article.aiSummary) {
-      alert('Please generate an AI summary first before translating.');
-      return;
-    }
-
-    console.log(`🔍 TRANSLATION DEBUG - ${language.toUpperCase()}:`);
-    console.log('Article ID:', articleId);
-    console.log('Summary being sent:', article.aiSummary.substring(0, 100) + '...');
-    console.log('Full summary length:', article.aiSummary.length);
-
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { 
-            ...a, 
-            status: 'in_translation',
-            translations: {
-              ...a.translations,
-              [language]: 'Translating...'
-            }
-          }
-        : a
-    ));
-
-    try {
-      const summaryText = article.aiSummary.replace(/<br>/g, '\n');
-      console.log('📤 Sending to API:', summaryText.substring(0, 100) + '...');
-      
-      const requestBody = {
-        action: 'translate',
-        language: language,
-        summary: summaryText
-      };
-
-      const response = await fetch(window.location.origin + '/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to translate: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      
-      // Check if both translations will be done after this one
-      const currentArticle = articles.find(a => a.id === articleId);
-      const otherLanguage = language === 'chinese' ? 'korean' : 'chinese';
-      const otherTranslationExists = currentArticle.translations[otherLanguage] && 
-                                   currentArticle.translations[otherLanguage] !== 'Translating...';
-      
-      const bothTranslationsDone = otherTranslationExists && data.result;
-
-      // ENHANCED: Format translation with paragraph breaks
-      const formattedTranslation = data.result.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
-
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: bothTranslationsDone ? 'translation_review' : 'ready_for_translation',
-              translations: {
-                ...a.translations,
-                [language]: formattedTranslation
-              }
-            }
-          : a
-      ));
-    } catch (error) {
-      console.error('Error translating:', error);
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'ready_for_translation',
-              translations: {
-                ...a.translations,
-                [language]: `Error: ${error.message}. Please try again.`
-              }
-            }
-          : a
-      ));
-    }
-  };
-
-  const handleGenerateImage = async (articleId) => {
-    const article = articles.find(a => a.id === articleId);
-    if (!article) return;
-
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, status: 'generating_image', imageGenerating: true }
-        : a
-    ));
-
-    try {
-      const response = await fetch(window.location.origin + '/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'generate_image',
-          title: article.displayTitle || article.aiTitle || article.originalTitle, // ENHANCED: Use display title
-          source: article.source
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate image');
-      }
-
-      const data = await response.json();
-      
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'ready_for_publication',
-              imageGenerated: true,
-              imageGenerating: false,
-              imageUrl: data.result
-            }
-          : a
-      ));
-    } catch (error) {
-      console.error('Error generating image:', error);
-      setArticles(prev => prev.map(a => 
-        a.id === articleId 
-          ? { 
-              ...a, 
-              status: 'ready_for_image',
-              imageGenerating: false,
-              imageUrl: null
-            }
-          : a
-      ));
-      alert('Failed to generate image. Please try again.');
-    }
-  };
-
-  const getTopicCounts = () => {
-    const counts = {};
-    articles.forEach(article => {
-      counts[article.topic] = (counts[article.topic] || 0) + 1;
-    });
-    return counts;
-  };
-
-  const getPriorityPercentages = () => {
-    const total = articles.length;
-    if (total === 0) return { high: 0, medium: 0, low: 0 };
-    
-    const counts = { high: 0, medium: 0, low: 0 };
-    articles.forEach(article => {
-      counts[article.priority] = (counts[article.priority] || 0) + 1;
-    });
-    
-    return {
-      high: Math.round((counts.high / total) * 100),
-      medium: Math.round((counts.medium / total) * 100),
-      low: Math.round((counts.low / total) * 100)
-    };
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const ArticlePipeline = () => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Content Pipeline</h2>
-          {lastUpdated && (
-            <p className="text-sm text-gray-500">
-              Last updated: {new Date(lastUpdated).toLocaleString()}
-            </p>
-          )}
-        </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Manual Add Article
-        </button>
-      </div>
-      
-      {articles.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Articles Found</h3>
-          <p className="text-gray-600">Upload your dashboard_data.json file to GitHub to see your scraped articles here.</p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {articles.map(article => (
-            <div key={article.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(article.status)}`}>
-                      {getStatusIcon(article.status)}
-                      {article.status.replace('_', ' ')}
-                    </span>
-                    <span className="text-xs text-gray-500">{article.source}</span>
-                    <span className="text-xs text-gray-500">•</span>
-                    <span className="text-xs text-gray-500">{article.scrapedDate}</span>
-                  </div>
-                  
-                  {/* ENHANCED: Title Section with AI Generation */}
-                  <div className="mb-3">
-                    <div className="mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {article.displayTitle || article.aiTitle || article.originalTitle}
-                      </h3>
-                      {(article.aiTitle || article.displayTitle) && article.originalTitle !== (article.displayTitle || article.aiTitle) && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Original: {article.originalTitle}
-                        </p>
-                      )}
-                    </div>
-                    
-                    {/* NEW: AI Title Generation UI */}
-                    {article.aiTitle && article.status === 'title_review' && (
-                      <div className="bg-blue-50 p-3 rounded-lg mb-3">
-                        <div className="text-sm text-gray-700">
-                          <strong>AI-Generated Title:</strong>
-                          {article.editingTitle ? (
-                            <div className="mt-2">
-                              <input
-                                id={`title-edit-${article.id}`}
-                                type="text"
-                                defaultValue={article.aiTitle}
-                                onBlur={(e) => handleEditTitle(article.id, e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded text-base font-medium"
-                              />
-                              <div className="flex gap-2 mt-2">
-                                <button 
-                                  onClick={() => {
-                                    console.log('APPROVE TITLE BUTTON CLICKED!', article.id);
-                                    const input = document.getElementById(`title-edit-${article.id}`);
-                                    console.log('Input found:', !!input);
-                                    if (input) {
-                                      console.log('Input value:', input.value);
-                                      handleEditTitle(article.id, input.value);
-                                      handleApproveTitle(article.id);
-                                    }
-                                  }}
-                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
-                                >
-                                  Approve Title
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    console.log('CANCEL TITLE BUTTON CLICKED!', article.id);
-                                    setArticles(prev => prev.map(a => 
-                                      a.id === article.id ? {...a, editingTitle: false} : a
-                                    ));
-                                  }}
-                                  className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="mt-1 font-medium text-gray-900">
-                                {article.aiTitle}
-                              </div>
-                              <div className="flex gap-2 mt-2">
-                                <button 
-                                  onClick={() => handleApproveTitle(article.id)}
-                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
-                                >
-                                  Approve Title
-                                </button>
-                                <button 
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    setArticles(prev => prev.map(a => 
-                                      a.id === article.id ? {...a, editingTitle: true} : a
-                                    ));
-                                  }}
-                                  className="text-purple-600 hover:text-purple-800 font-medium text-xs"
-                                >
-                                  Edit Title
-                                </button>
-                                <button 
-                                  onClick={() => handleGenerateTitle(article.id)}
-                                  className="text-blue-600 hover:text-blue-800 font-medium text-xs"
-                                >
-                                  Regenerate
-                                </button>
-                                <button 
-                                  onClick={() => handleTranslateTitle(article.id, 'chinese')}
-                                  className="text-red-600 hover:text-red-800 font-medium text-xs"
-                                >
-                                  Translate to Chinese
-                                </button>
-                                <button 
-                                  onClick={() => handleTranslateTitle(article.id, 'korean')}
-                                  className="text-blue-600 hover:text-blue-800 font-medium text-xs"
-                                >
-                                  Translate to Korean
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* NEW: Title Translations Display */}
-                    {(article.titleTranslations?.chinese || article.titleTranslations?.korean) && (
-                      <div className="bg-indigo-50 p-3 rounded-lg mb-3">
-                        <div className="text-sm text-gray-700">
-                          <strong>Title Translations:</strong>
-                          {article.titleTranslations?.chinese && (
-                            <div className="mt-1">
-                              <span className="text-xs text-gray-500">Chinese:</span>
-                              <div className="font-medium text-gray-900">{article.titleTranslations.chinese}</div>
-                            </div>
-                          )}
-                          {article.titleTranslations?.korean && (
-                            <div className="mt-1">
+}
