@@ -1,4 +1,4 @@
-// API route for OpenAI integration - Updated with title regeneration and fixes
+// API route for OpenAI integration - Fixed with better error handling and content validation
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -235,21 +235,52 @@ Provide only the Korean translation:`;
     if (action === 'summarize') {
       console.log('Starting summarization for:', title);
       
-      // Check if we have actual article content
-      if (!content || content.trim().length < 100) {
+      // Enhanced content validation with better error messages
+      if (!content || content.trim().length === 0) {
+        console.error('No content provided for summarization');
         return NextResponse.json({ 
-          error: 'Insufficient article content provided. Cannot generate summary without the full article text.' 
+          error: 'No article content provided. Cannot generate summary without the full article text.',
+          suggestion: 'Please ensure your web scraping system captures the complete article content before attempting to generate summaries.'
         }, { status: 400 });
       }
 
-      // Check if content appears to be just metadata (constructed fake content)
-      const isJustMetadata = content.includes('This article needs a comprehensive summary') || 
-                            content.includes('[Note: Full article content not available]') ||
-                            content.split('.').length < 5; // Very short content
-
-      if (isJustMetadata) {
+      if (content.trim().length < 100) {
+        console.error('Content too short for summarization:', content.length, 'characters');
         return NextResponse.json({ 
-          error: 'Only article metadata provided. Full article text is required to generate accurate summaries without fabrication. Please ensure your scraping system captures the complete article content.' 
+          error: 'Article content is too short to generate a meaningful summary. Minimum 100 characters required.',
+          received: content.trim().length,
+          suggestion: 'Please provide the full article text, not just the headline or metadata.'
+        }, { status: 400 });
+      }
+
+      // Enhanced detection of placeholder/constructed content
+      const placeholderIndicators = [
+        'This article needs a comprehensive summary',
+        '[Note: Full article content not available]',
+        'Published by',
+        'needs a comprehensive summary',
+        'comprehensive summary'
+      ];
+
+      const isPlaceholderContent = placeholderIndicators.some(indicator => 
+        content.toLowerCase().includes(indicator.toLowerCase())
+      );
+
+      // Check if content appears to be just metadata (very few sentences)
+      const sentenceCount = content.split(/[.!?]+/).filter(s => s.trim().length > 10).length;
+      const isJustMetadata = sentenceCount < 3;
+
+      if (isPlaceholderContent || isJustMetadata) {
+        console.error('Detected placeholder or metadata-only content');
+        return NextResponse.json({ 
+          error: 'Cannot generate summary from placeholder content or article metadata.',
+          details: 'The provided content appears to be constructed metadata rather than the actual article text.',
+          suggestion: 'Please ensure your web scraping system captures the complete article body text, including all paragraphs and quotes from the original source.',
+          contentAnalysis: {
+            isPlaceholder: isPlaceholderContent,
+            sentenceCount: sentenceCount,
+            contentLength: content.length
+          }
         }, { status: 400 });
       }
       
