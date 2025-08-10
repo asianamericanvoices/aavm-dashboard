@@ -569,7 +569,7 @@ export default function AAVMDashboard() {
 
   const ArticlePreview = ({ article }) => (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-      <h4 className="font-medium text-blue-900 mb-2">📄 Article Preview</h4>
+      <h4 className="font-medium text-blue-900 mb-2">📄 {article.originalTitle}</h4>
       <div className="space-y-2 text-sm">
         <p><strong>Source:</strong> {article.source}</p>
         <p><strong>Topic:</strong> {article.topic}</p>
