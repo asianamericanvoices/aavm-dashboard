@@ -584,14 +584,14 @@ export default function AAVMDashboard() {
         </button>
       </div>
       
-      {articles.length === 0 ? (
+      {articles.filter(a => a.status !== 'discarded').length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Articles Found</h3>
           <p className="text-gray-600">Upload your dashboard_data.json file to GitHub to see your scraped articles here.</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {articles.map(article => (
+          {articles.filter(a => a.status !== 'discarded').map(article => (
             <div key={article.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
