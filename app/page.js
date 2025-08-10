@@ -908,13 +908,28 @@ export default function AAVMDashboard() {
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Chinese Translation:</h4>
                         {article.editingChinese ? (
                           <div>
-                            <textarea
-                              id={`chinese-edit-${article.id}`}
-                              defaultValue={article.translations.chinese}
-                              onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
-                              rows="4"
-                            />
+                            <div className="space-y-2">
+                              {article.translatedTitles?.chinese && (
+                                <div>
+                                  <label className="text-xs font-medium text-gray-700">Chinese Title:</label>
+                                  <input
+                                    type="text"
+                                    defaultValue={article.translatedTitles.chinese}
+                                    className="w-full p-2 border border-gray-300 rounded text-sm"
+                                  />
+                                </div>
+                              )}
+                              <div>
+                                <label className="text-xs font-medium text-gray-700">Chinese Summary:</label>
+                                <textarea
+                                  id={`chinese-edit-${article.id}`}
+                                  defaultValue={article.translations.chinese}
+                                  onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
+                                  rows="4"
+                                />
+                              </div>
+                            </div>
                             <div className="flex gap-2 mt-1">
                               <button 
                                 onClick={(e) => {
@@ -1005,13 +1020,28 @@ export default function AAVMDashboard() {
                         <h4 className="font-medium text-sm text-gray-900 mb-1">Korean Translation:</h4>
                         {article.editingKorean ? (
                           <div>
-                            <textarea
-                              id={`korean-edit-${article.id}`}
-                              defaultValue={article.translations.korean}
-                              onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
-                              rows="4"
-                            />
+                            <div className="space-y-2">
+                              {article.translatedTitles?.korean && (
+                                <div>
+                                  <label className="text-xs font-medium text-gray-700">Korean Title:</label>
+                                  <input
+                                    type="text"
+                                    defaultValue={article.translatedTitles.korean}
+                                    className="w-full p-2 border border-gray-300 rounded text-sm"
+                                  />
+                                </div>
+                              )}
+                              <div>
+                                <label className="text-xs font-medium text-gray-700">Korean Summary:</label>
+                                <textarea
+                                  id={`korean-edit-${article.id}`}
+                                  defaultValue={article.translations.korean}
+                                  onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
+                                  rows="4"
+                                />
+                              </div>
+                            </div>
                             <div className="flex gap-2 mt-1">
                               <button 
                                 onClick={(e) => {
