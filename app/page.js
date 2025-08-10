@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap } from 'lucide-react';
+import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap, X, ExternalLink } from 'lucide-react';
 
 export default function AAVMDashboard() {
   const [articles, setArticles] = useState([]);
@@ -141,6 +141,14 @@ export default function AAVMDashboard() {
     }
   };
 
+  const handleDiscardArticle = (articleId) => {
+  if (confirm('Are you sure you want to discard this article?')) {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId ? { ...a, status: 'discarded' } : a
+    ));
+  }
+};
+  
   const handleGenerateTitle = async (articleId) => {
     const article = articles.find(a => a.id === articleId);
     if (!article) return;
@@ -992,13 +1000,22 @@ export default function AAVMDashboard() {
               <div className="border-t pt-3 mt-3">
                 <div className="flex gap-2 flex-wrap">
                   {article.status === 'pending_synthesis' && (
-                    <button 
-                      onClick={() => handleGenerateTitle(article.id)}
-                      className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm flex items-center gap-1"
-                    >
-                      <Zap className="w-3 h-3" />
-                      Generate Punchy Title
-                    </button>
+                    <>
+                      <button 
+                        onClick={() => handleGenerateTitle(article.id)}
+                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm flex items-center gap-1"
+                      >
+                        <Zap className="w-3 h-3" />
+                        Generate Punchy Title
+                      </button>
+                      <button 
+                        onClick={() => handleDiscardArticle(article.id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Discard Article
+                      </button>
+                    </>
                   )}
                   {article.status === 'generating_title' && (
                     <button 
