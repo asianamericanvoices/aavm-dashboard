@@ -784,7 +784,24 @@ export default function AAVMDashboard() {
                   <p className="text-sm text-gray-600 mb-2">
                     By {getAuthorDisplay(article.author, article.source)}
                   </p>
-                  
+
+                  {/* Translated Titles Display */}
+                  {(article.translatedTitles?.chinese || article.translatedTitles?.korean) && (
+                    <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                      <h4 className="font-medium text-sm text-gray-900 mb-2">Translated Titles:</h4>
+                      {article.translatedTitles?.chinese && (
+                        <p className="text-sm text-gray-700 mb-1">
+                          <strong>Chinese:</strong> {article.translatedTitles.chinese}
+                        </p>
+                      )}
+                      {article.translatedTitles?.korean && (
+                        <p className="text-sm text-gray-700">
+                          <strong>Korean:</strong> {article.translatedTitles.korean}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {article.imageUrl && (
                     <div className="mb-4">
                       <img 
