@@ -785,23 +785,6 @@ export default function AAVMDashboard() {
                     By {getAuthorDisplay(article.author, article.source)}
                   </p>
 
-                  {/* Translated Titles Display */}
-                  {(article.translatedTitles?.chinese || article.translatedTitles?.korean) && (
-                    <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                      <h4 className="font-medium text-sm text-gray-900 mb-2">Translated Titles:</h4>
-                      {article.translatedTitles?.chinese && (
-                        <p className="text-sm text-gray-700 mb-1">
-                          <strong>Chinese:</strong> {article.translatedTitles.chinese}
-                        </p>
-                      )}
-                      {article.translatedTitles?.korean && (
-                        <p className="text-sm text-gray-700">
-                          <strong>Korean:</strong> {article.translatedTitles.korean}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
                   {article.imageUrl && (
                     <div className="mb-4">
                       <img 
@@ -952,12 +935,22 @@ export default function AAVMDashboard() {
                           </div>
                         ) : (
                           <div>
-                            <p className="text-sm text-gray-700">
-                              {article.showFullChinese || article.translations.chinese.length <= 200
-                                ? article.translations.chinese
-                                : `${article.translations.chinese.substring(0, 200)}...`
-                              }
-                            </p>
+                            <div className="text-sm text-gray-700">
+                              {article.translatedTitles?.chinese && (
+                                <div className="mb-3 p-2 bg-blue-50 rounded">
+                                  <strong>Title:</strong> {article.translatedTitles.chinese}
+                                </div>
+                              )}
+                              <div>
+                                <strong>Summary:</strong>
+                                <div className="mt-1">
+                                  {article.showFullChinese || article.translations.chinese.length <= 200
+                                    ? article.translations.chinese
+                                    : `${article.translations.chinese.substring(0, 200)}...`
+                                  }
+                                </div>
+                              </div>
+                            </div>
                             <div className="flex gap-2 mt-1">
                               {article.translations.chinese.length > 200 && (
                                 <button 
@@ -1039,12 +1032,22 @@ export default function AAVMDashboard() {
                           </div>
                         ) : (
                           <div>
-                            <p className="text-sm text-gray-700">
-                              {article.showFullKorean || article.translations.korean.length <= 200
-                                ? article.translations.korean
-                                : `${article.translations.korean.substring(0, 200)}...`
-                              }
-                            </p>
+                            <div className="text-sm text-gray-700">
+                              {article.translatedTitles?.korean && (
+                                <div className="mb-3 p-2 bg-blue-50 rounded">
+                                  <strong>Title:</strong> {article.translatedTitles.korean}
+                                </div>
+                              )}
+                              <div>
+                                <strong>Summary:</strong>
+                                <div className="mt-1">
+                                  {article.showFullKorean || article.translations.korean.length <= 200
+                                    ? article.translations.korean
+                                    : `${article.translations.korean.substring(0, 200)}...`
+                                  }
+                                </div>
+                              </div>
+                            </div>
                             <div className="flex gap-2 mt-1">
                               {article.translations.korean.length > 200 && (
                                 <button 
