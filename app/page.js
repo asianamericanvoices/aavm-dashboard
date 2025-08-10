@@ -89,7 +89,8 @@ export default function AAVMDashboard() {
         originalUrl: "https://example.com",
         status: "pending_synthesis",
         topic: "Sample",
-        aiSummary: "This is sample data. Upload your dashboard_data.json file to GitHub to see your real scraped articles here.",
+        fullContent: "This is sample data. Upload your dashboard_data.json file to GitHub to see your real scraped articles here.",
+        aiSummary: null,
         translations: { chinese: null, korean: null },
         imageGenerated: false,
         priority: "medium",
@@ -237,6 +238,12 @@ export default function AAVMDashboard() {
     const article = articles.find(a => a.id === articleId);
     if (!article) return;
 
+    // FIXED: Check if we have full content to work with
+    if (!article.fullContent || article.fullContent.trim().length < 100) {
+      alert('Full article content not available. Please re-run the scraper to capture complete article text.');
+      return;
+    }
+
     setArticles(prev => prev.map(a => 
       a.id === articleId 
         ? { ...a, status: 'generating_summary', aiSummary: 'Generating AI summary...' }
@@ -253,12 +260,14 @@ export default function AAVMDashboard() {
           action: 'summarize',
           title: article.displayTitle || article.aiTitle || article.originalTitle,
           source: article.source,
-          content: `${article.displayTitle || article.aiTitle || article.originalTitle}. Published by ${article.source} on ${article.scrapedDate}. This article needs a comprehensive summary.`
+          // FIXED: Use fullContent instead of constructed content
+          content: article.fullContent
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate summary');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate summary');
       }
 
       const data = await response.json();
@@ -280,7 +289,7 @@ export default function AAVMDashboard() {
           ? { 
               ...a, 
               status: 'pending_synthesis',
-              aiSummary: 'Error generating summary. Please try again.'
+              aiSummary: `Error: ${error.message}. Please try again.`
             }
           : a
       ));
