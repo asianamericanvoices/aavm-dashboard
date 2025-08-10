@@ -567,6 +567,42 @@ export default function AAVMDashboard() {
     );
   }
 
+  const ArticlePreview = ({ article }) => (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+      <h4 className="font-medium text-blue-900 mb-2">📄 Article Preview</h4>
+      <div className="space-y-2 text-sm">
+        <p><strong>Source:</strong> {article.source}</p>
+        <p><strong>Topic:</strong> {article.topic}</p>
+        <p><strong>Priority:</strong> 
+          <span className={`ml-1 font-medium ${
+            article.priority === 'high' ? 'text-red-600' : 
+            article.priority === 'medium' ? 'text-orange-600' : 'text-gray-600'
+          }`}>
+            {article.priority}
+          </span>
+        </p>
+        <p><strong>Relevance Score:</strong> {article.relevanceScore}/10</p>
+        {article.shortDescription && (
+          <div>
+            <strong>Preview:</strong>
+            <p className="text-gray-700 mt-1 italic">"{article.shortDescription}"</p>
+          </div>
+        )}
+        <div className="flex gap-2 mt-3">
+          <a 
+            href={article.originalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs bg-white px-2 py-1 rounded border"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Read Original
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+  
   const ArticlePipeline = () => (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -604,7 +640,11 @@ export default function AAVMDashboard() {
                     <span className="text-xs text-gray-500">•</span>
                     <span className="text-xs text-gray-500">{article.scrapedDate}</span>
                   </div>
-                  
+
+                  {/* Article Preview for pending synthesis */}
+                                    {article.status === 'pending_synthesis' && (
+                                      <ArticlePreview article={article} />
+                                    )}
                   {/* Title Section */}
                   <div className="mb-3">
                     <div className="mb-2">
