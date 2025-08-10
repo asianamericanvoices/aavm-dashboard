@@ -141,6 +141,45 @@ export default function AAVMDashboard() {
     }
   };
 
+  const handleTranslateTitle = async (articleId, language) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article || !article.aiTitle) return;
+  
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'translate_title',
+          title: article.aiTitle,
+          language: language
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to translate title');
+      }
+  
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              translatedTitles: {
+                ...a.translatedTitles,
+                [language]: data.result
+              }
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error translating title:', error);
+    }
+  };
+  
   const handleDiscardArticle = (articleId) => {
   if (confirm('Are you sure you want to discard this article?')) {
     setArticles(prev => prev.map(a => 
@@ -438,6 +477,11 @@ export default function AAVMDashboard() {
       }
 
       const data = await response.json();
+
+      // Also translate the title if we have one
+      if (article.aiTitle && !article.translatedTitles?.[language]) {
+        handleTranslateTitle(articleId, language);
+      }
       
       // Check if both translations will be done after this one
       const currentArticle = articles.find(a => a.id === articleId);
