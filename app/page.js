@@ -924,7 +924,7 @@ export default function AAVMDashboard() {
                                 <textarea
                                   id={`chinese-edit-${article.id}`}
                                   defaultValue={article.translations.chinese.replace(/<br><br>/g, '\n\n').replace(/<br>/g, '\n')}
-                                  onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'))}
+                                  onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
                                   className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                                   rows="4"
                                 />
@@ -936,7 +936,7 @@ export default function AAVMDashboard() {
                                   e.preventDefault();
                                   const textarea = document.getElementById(`chinese-edit-${article.id}`);
                                   if (textarea) {
-                                    handleEditTranslation(article.id, 'chinese', textarea.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'));
+                                    handleEditTranslation(article.id, 'chinese', textarea.value.replace(/\n/g, '<br>'));
                                     setArticles(prev => prev.map(a => 
                                       a.id === article.id ? {...a, editingChinese: false} : a
                                     ));
@@ -1038,7 +1038,7 @@ export default function AAVMDashboard() {
                                 <textarea
                                   id={`korean-edit-${article.id}`}
                                   defaultValue={article.translations.korean.replace(/<br><br>/g, '\n\n').replace(/<br>/g, '\n')}
-                                  onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'))}
+                                  onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
                                   className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                                   rows="4"
                                 />
@@ -1050,7 +1050,7 @@ export default function AAVMDashboard() {
                                   e.preventDefault();
                                   const textarea = document.getElementById(`korean-edit-${article.id}`);
                                   if (textarea) {
-                                    handleEditTranslation(article.id, 'korean', textarea.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'));
+                                    handleEditTranslation(article.id, 'korean', textarea.value.replace(/\n/g, '<br>'));
                                     setArticles(prev => prev.map(a => 
                                       a.id === article.id ? {...a, editingKorean: false} : a
                                     ));
