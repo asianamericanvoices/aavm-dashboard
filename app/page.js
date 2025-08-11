@@ -936,7 +936,7 @@ export default function AAVMDashboard() {
                                   e.preventDefault();
                                   const textarea = document.getElementById(`chinese-edit-${article.id}`);
                                   if (textarea) {
-                                    handleEditTranslation(article.id, 'chinese', textarea.value);
+                                    handleEditTranslation(article.id, 'chinese', textarea.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'));
                                     setArticles(prev => prev.map(a => 
                                       a.id === article.id ? {...a, editingChinese: false} : a
                                     ));
@@ -1050,7 +1050,7 @@ export default function AAVMDashboard() {
                                   e.preventDefault();
                                   const textarea = document.getElementById(`korean-edit-${article.id}`);
                                   if (textarea) {
-                                    handleEditTranslation(article.id, 'korean', textarea.value);
+                                    handleEditTranslation(article.id, 'korean', textarea.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'));
                                     setArticles(prev => prev.map(a => 
                                       a.id === article.id ? {...a, editingKorean: false} : a
                                     ));
