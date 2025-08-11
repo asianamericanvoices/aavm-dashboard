@@ -454,7 +454,7 @@ export default function AAVMDashboard() {
     ));
 
     try {
-      const summaryText = article.aiSummary.replace(/<br>/g, '\n');
+      const summaryText = article.aiSummary.replace(/<br>/g, '\n\n');
       console.log('📤 Sending to API:', summaryText.substring(0, 100) + '...');
       
       const requestBody = {
@@ -498,7 +498,7 @@ export default function AAVMDashboard() {
               status: bothTranslationsDone ? 'translation_review' : 'ready_for_translation',
               translations: {
                 ...a.translations,
-                [language]: data.result
+                [language]: data.result.replace(/\n\n/g, '<br><br>')
               }
             }
           : a
@@ -923,8 +923,8 @@ export default function AAVMDashboard() {
                                 <label className="text-xs font-medium text-gray-700">Chinese Summary:</label>
                                 <textarea
                                   id={`chinese-edit-${article.id}`}
-                                  defaultValue={article.translations.chinese}
-                                  onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value)}
+                                  defaultValue={article.translations.chinese.replace(/<br><br>/g, '\n\n').replace(/<br>/g, '\n')}
+                                  onBlur={(e) => handleEditTranslation(article.id, 'chinese', e.target.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'))}
                                   className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                                   rows="4"
                                 />
@@ -1037,8 +1037,8 @@ export default function AAVMDashboard() {
                                 <label className="text-xs font-medium text-gray-700">Korean Summary:</label>
                                 <textarea
                                   id={`korean-edit-${article.id}`}
-                                  defaultValue={article.translations.korean}
-                                  onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value)}
+                                  defaultValue={article.translations.korean.replace(/<br><br>/g, '\n\n').replace(/<br>/g, '\n')}
+                                  onBlur={(e) => handleEditTranslation(article.id, 'korean', e.target.value.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'))}
                                   className="w-full p-2 border border-gray-300 rounded resize-none text-sm"
                                   rows="4"
                                 />
