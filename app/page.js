@@ -958,12 +958,14 @@ export default function AAVMDashboard() {
                               )}
                               <div>
                                 <strong>Summary:</strong>
-                                <div className="mt-1">
-                                  {article.showFullChinese || article.translations.chinese.length <= 200
-                                    ? article.translations.chinese
-                                    : `${article.translations.chinese.substring(0, 200)}...`
-                                  }
-                                </div>
+                                <div 
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{
+                                    __html: article.showFullChinese || article.translations.chinese.length <= 200
+                                      ? article.translations.chinese
+                                      : `${article.translations.chinese.substring(0, 200)}...`
+                                  }}
+                                />
                               </div>
                             </div>
                             <div className="flex gap-2 mt-1">
@@ -980,7 +982,7 @@ export default function AAVMDashboard() {
                                   {article.showFullChinese ? 'Show less' : 'Read more'}
                                 </button>
                               )}
-                              {article.status === 'translation_review' && (
+                              {(article.status === 'translation_review' || article.status === 'ready_for_translation') && article.translations.chinese && article.translations.chinese !== 'Translating...' && (
                                 <button 
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -1070,12 +1072,14 @@ export default function AAVMDashboard() {
                               )}
                               <div>
                                 <strong>Summary:</strong>
-                                <div className="mt-1">
-                                  {article.showFullKorean || article.translations.korean.length <= 200
-                                    ? article.translations.korean
-                                    : `${article.translations.korean.substring(0, 200)}...`
-                                  }
-                                </div>
+                                <div 
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{
+                                    __html: article.showFullKorean || article.translations.korean.length <= 200
+                                      ? article.translations.korean
+                                      : `${article.translations.korean.substring(0, 200)}...`
+                                  }}
+                                />
                               </div>
                             </div>
                             <div className="flex gap-2 mt-1">
@@ -1092,7 +1096,7 @@ export default function AAVMDashboard() {
                                   {article.showFullKorean ? 'Show less' : 'Read more'}
                                 </button>
                               )}
-                              {article.status === 'translation_review' && (
+                              {(article.status === 'translation_review' || article.status === 'ready_for_translation') && article.translations.korean && article.translations.korean !== 'Translating...' && (
                                 <button 
                                   onClick={(e) => {
                                     e.preventDefault();
