@@ -454,7 +454,7 @@ export default function AAVMDashboard() {
     ));
 
     try {
-      const summaryText = article.aiSummary.replace(/<br>/g, '\n\n');
+      const summaryText = article.aiSummary.replace(/<br>/g, '\n');
       console.log('📤 Sending to API:', summaryText.substring(0, 100) + '...');
       
       const requestBody = {
@@ -498,7 +498,7 @@ export default function AAVMDashboard() {
               status: bothTranslationsDone ? 'translation_review' : 'ready_for_translation',
               translations: {
                 ...a.translations,
-                [language]: data.result.replace(/\n\n/g, '<br><br>')
+                [language]: data.result.replace(/\n/g, '<br>')
               }
             }
           : a
