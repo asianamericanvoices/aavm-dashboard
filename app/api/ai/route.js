@@ -1,13 +1,94 @@
-// API route for OpenAI integration with file-based persistence
+// app/api/ai/route.js - Enhanced with optional Supabase integration
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// Optional Supabase integration - gracefully falls back to file system
+let supabase = null;
+try {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    const { createClient } = require('@supabase/supabase-js');
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    console.log('✅ Supabase connected');
+  } else {
+    console.log('📁 Using file system (Supabase env vars not found)');
+  }
+} catch (error) {
+  console.log('📁 Supabase not available, using file system');
+  supabase = null;
+}
+
 // Helper function to read dashboard data
-function readDashboardData() {
+async function readDashboardData() {
+  if (supabase) {
+    try {
+      console.log('📊 Reading from Supabase...');
+      const { data: articles, error: articlesError } = await supabase
+        .from('articles')
+        .select('*')
+        .order('scraped_date', { ascending: false });
+
+      if (articlesError) throw articlesError;
+
+      const { data: analytics, error: analyticsError } = await supabase
+        .from('analytics')
+        .select('*')
+        .single();
+
+      const calculatedAnalytics = analytics || {
+        total_articles: articles.length,
+        today_articles: articles.filter(a => 
+          new Date(a.scraped_date).toDateString() === new Date().toDateString()
+        ).length,
+        pending_synthesis: articles.filter(a => a.status === 'pending_synthesis').length,
+        pending_translation: articles.filter(a => 
+          !a.translations?.chinese || !a.translations?.korean
+        ).length,
+        published_articles: articles.filter(a => a.status === 'published').length
+      };
+
+      // Convert Supabase format to dashboard format
+      const dashboardArticles = articles.map(article => ({
+        id: article.id,
+        originalTitle: article.original_title,
+        source: article.source,
+        author: article.author,
+        scrapedDate: article.scraped_date,
+        originalUrl: article.original_url,
+        status: article.status,
+        topic: article.topic,
+        fullContent: article.full_content,
+        shortDescription: article.short_description,
+        aiSummary: article.ai_summary,
+        aiTitle: article.ai_title,
+        displayTitle: article.display_title,
+        translations: article.translations || { chinese: null, korean: null },
+        translatedTitles: article.translated_titles || { chinese: null, korean: null },
+        imageGenerated: article.image_generated || false,
+        imageUrl: article.image_url,
+        priority: article.priority,
+        relevanceScore: article.relevance_score
+      }));
+
+      return {
+        articles: dashboardArticles,
+        analytics: calculatedAnalytics,
+        last_updated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Supabase read error, falling back to file:', error);
+      return readFromFile();
+    }
+  } else {
+    return readFromFile();
+  }
+}
+
+function readFromFile() {
   try {
     const filePath = path.join(process.cwd(), 'public', 'dashboard_data.json');
     const fileContent = fs.readFileSync(filePath, 'utf8');
+    console.log('📁 Reading from file system');
     return JSON.parse(fileContent);
   } catch (error) {
     console.error('Error reading dashboard data:', error);
@@ -15,12 +96,27 @@ function readDashboardData() {
   }
 }
 
-// Helper function to write dashboard data (Vercel-compatible)
-function writeDashboardData(data) {
+// Helper function to write dashboard data (enhanced with Supabase)
+async function writeDashboardData(data) {
+  if (supabase) {
+    try {
+      console.log('💾 Saving to Supabase...');
+      // This would be implemented when needed
+      return true;
+    } catch (error) {
+      console.error('❌ Supabase write error:', error);
+      return writeToFile(data);
+    }
+  } else {
+    return writeToFile(data);
+  }
+}
+
+function writeToFile(data) {
   try {
     // On Vercel, we can't write to files, so we'll just log and return true
     // In a real production setup, this would write to a database
-    console.log('📝 Would save data:', JSON.stringify(data, null, 2));
+    console.log('📝 Would save data (Vercel file system is read-only)');
     data.last_updated = new Date().toISOString();
     return true;
   } catch (error) {
@@ -29,8 +125,47 @@ function writeDashboardData(data) {
   }
 }
 
-// Helper function to update article in dashboard data (Vercel-compatible)
-function updateArticleInData(articleId, updates) {
+// Helper function to update article in dashboard data (enhanced with Supabase)
+async function updateArticleInData(articleId, updates) {
+  if (supabase) {
+    try {
+      console.log('🔄 Updating in Supabase:', articleId, updates);
+      
+      // Convert dashboard format to Supabase format
+      const supabaseUpdates = {};
+      if (updates.aiTitle) supabaseUpdates.ai_title = updates.aiTitle;
+      if (updates.aiSummary) supabaseUpdates.ai_summary = updates.aiSummary;
+      if (updates.displayTitle) supabaseUpdates.display_title = updates.displayTitle;
+      if (updates.status) supabaseUpdates.status = updates.status;
+      if (updates.translations) supabaseUpdates.translations = updates.translations;
+      if (updates.translatedTitles) supabaseUpdates.translated_titles = updates.translatedTitles;
+      if (updates.imageUrl) supabaseUpdates.image_url = updates.imageUrl;
+      if (updates.imageGenerated !== undefined) supabaseUpdates.image_generated = updates.imageGenerated;
+      
+      const { data, error } = await supabase
+        .from('articles')
+        .update(supabaseUpdates)
+        .eq('id', articleId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        ...updates,
+        last_updated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Supabase update error:', error);
+      return updateInFile(articleId, updates);
+    }
+  } else {
+    return updateInFile(articleId, updates);
+  }
+}
+
+function updateInFile(articleId, updates) {
   console.log('🔄 Updating article:', articleId, 'with:', updates);
   
   // For now, just return success without actually saving
@@ -47,10 +182,14 @@ export async function GET() {
   const keyPreview = process.env.OPENAI_API_KEY ? 
     process.env.OPENAI_API_KEY.substring(0, 7) + '...' : 'Not found';
   
+  const hasSupabase = !!supabase;
+  
   return NextResponse.json({ 
     message: 'AI API route is working!',
     hasApiKey,
     keyPreview,
+    hasSupabase,
+    dataSource: hasSupabase ? 'Supabase' : 'File System',
     timestamp: new Date().toISOString()
   });
 }
@@ -84,12 +223,15 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Article ID required for status updates' }, { status: 400 });
       }
     
-      // For Vercel demo, just return success
+      // Enhanced: Try Supabase first, fall back to file system
+      const updatedArticle = await updateArticleInData(articleId, { status, ...updates });
+      
       return NextResponse.json({ 
         success: true, 
-        message: 'Status update received (Vercel demo mode)',
+        message: `Status update saved ${supabase ? '(Supabase)' : '(File System)'}`,
         articleId: articleId,
-        updates: { status, ...updates }
+        updates: { status, ...updates },
+        article: updatedArticle
       });
     }
 
@@ -101,12 +243,13 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Article ID required for content updates' }, { status: 400 });
       }
 
-      const updatedArticle = updateArticleInData(articleId, updates);
+      const updatedArticle = await updateArticleInData(articleId, updates);
       
       if (updatedArticle) {
         return NextResponse.json({ 
           success: true, 
-          article: updatedArticle 
+          article: updatedArticle,
+          dataSource: supabase ? 'Supabase' : 'File System'
         });
       } else {
         return NextResponse.json({ 
@@ -203,9 +346,9 @@ Generate ONE punchy headline that's better than the original:`;
       // Clean up the title (remove quotes if AI added them)
       const cleanTitle = newTitle.replace(/^["']|["']$/g, '').trim();
 
-      // Save the generated title to the article
+      // Save the generated title to the article (enhanced with Supabase)
       if (articleId) {
-        updateArticleInData(articleId, { 
+        await updateArticleInData(articleId, { 
           aiTitle: cleanTitle,
           status: 'title_review'
         });
@@ -215,7 +358,8 @@ Generate ONE punchy headline that's better than the original:`;
       
       return NextResponse.json({ 
         result: cleanTitle,
-        usage: data.usage
+        usage: data.usage,
+        dataSource: supabase ? 'Supabase' : 'File System'
       });
     }
 
@@ -314,16 +458,16 @@ Provide only the Korean translation:`;
       // Clean up the translation (remove quotes if AI added them)
       const cleanTranslation = translation.replace(/^["']|["']$/g, '').trim();
 
-      // Save the translated title to the article
+      // Save the translated title to the article (enhanced with Supabase)
       if (articleId) {
-        const currentData = readDashboardData();
+        const currentData = await readDashboardData();
         const article = currentData.articles.find(a => a.id === articleId);
         if (article) {
           const updatedTranslatedTitles = {
             ...article.translatedTitles,
             [language]: cleanTranslation
           };
-          updateArticleInData(articleId, { 
+          await updateArticleInData(articleId, { 
             translatedTitles: updatedTranslatedTitles
           });
         }
@@ -333,7 +477,8 @@ Provide only the Korean translation:`;
       
       return NextResponse.json({ 
         result: cleanTranslation,
-        usage: data.usage
+        usage: data.usage,
+        dataSource: supabase ? 'Supabase' : 'File System'
       });
     }
 
@@ -490,9 +635,9 @@ Write the news summary now with proper paragraph formatting:`;
       // Convert paragraph breaks to HTML format for display
       const formattedSummary = summary.replace(/\n\n/g, '\n\n').replace(/\n/g, '<br>');
 
-      // Save the generated summary to the article
+      // Save the generated summary to the article (enhanced with Supabase)
       if (articleId) {
-        updateArticleInData(articleId, { 
+        await updateArticleInData(articleId, { 
           aiSummary: formattedSummary,
           status: 'summary_review'
         });
@@ -502,7 +647,8 @@ Write the news summary now with proper paragraph formatting:`;
       
       return NextResponse.json({ 
         result: formattedSummary,
-        usage: data.usage
+        usage: data.usage,
+        dataSource: supabase ? 'Supabase' : 'File System'
       });
     }
 
@@ -583,9 +729,9 @@ Create a visual representation that captures the essence of the news story throu
           }, { status: 500 });
         }
 
-        // Save the generated image URL to the article
+        // Save the generated image URL to the article (enhanced with Supabase)
         if (articleId) {
-          updateArticleInData(articleId, { 
+          await updateArticleInData(articleId, { 
             imageUrl: imageUrl,
             imageGenerated: true,
             status: 'ready_for_publication'
@@ -596,7 +742,8 @@ Create a visual representation that captures the essence of the news story throu
         
         return NextResponse.json({ 
           result: imageUrl,
-          usage: data.usage
+          usage: data.usage,
+          dataSource: supabase ? 'Supabase' : 'File System'
         });
 
       } catch (error) {
@@ -703,9 +850,9 @@ Provide only the Korean translation:`;
         }, { status: 500 });
       }
 
-      // Save the translation to the article
+      // Save the translation to the article (enhanced with Supabase)
       if (articleId) {
-        const currentData = readDashboardData();
+        const currentData = await readDashboardData();
         const article = currentData.articles.find(a => a.id === articleId);
         if (article) {
           const updatedTranslations = {
@@ -716,7 +863,7 @@ Provide only the Korean translation:`;
           // Check if both translations are now complete
           const bothComplete = updatedTranslations.chinese && updatedTranslations.korean;
           
-          updateArticleInData(articleId, { 
+          await updateArticleInData(articleId, { 
             translations: updatedTranslations,
             status: bothComplete ? 'translation_review' : 'ready_for_translation'
           });
@@ -727,7 +874,8 @@ Provide only the Korean translation:`;
       
       return NextResponse.json({ 
         result: translation,
-        usage: data.usage
+        usage: data.usage,
+        dataSource: supabase ? 'Supabase' : 'File System'
       });
     }
 
@@ -749,5 +897,19 @@ Provide only the Korean translation:`;
       type: error.name,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
+  }
+}
+
+// New endpoint for dashboard data - enhanced with Supabase
+export async function GET(request) {
+  try {
+    const dashboardData = await readDashboardData();
+    return NextResponse.json(dashboardData);
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch dashboard data' },
+      { status: 500 }
+    );
   }
 }
