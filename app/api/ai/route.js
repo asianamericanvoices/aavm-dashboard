@@ -1,5 +1,45 @@
-// API route for OpenAI integration - Fixed with better error handling and content validation
+// API route for OpenAI integration with file-based persistence
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
+
+// Helper function to read dashboard data
+function readDashboardData() {
+  try {
+    const filePath = path.join(process.cwd(), 'public', 'dashboard_data.json');
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(fileContent);
+  } catch (error) {
+    console.error('Error reading dashboard data:', error);
+    return { articles: [], analytics: {}, last_updated: new Date().toISOString() };
+  }
+}
+
+// Helper function to write dashboard data
+function writeDashboardData(data) {
+  try {
+    const filePath = path.join(process.cwd(), 'public', 'dashboard_data.json');
+    data.last_updated = new Date().toISOString();
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing dashboard data:', error);
+    return false;
+  }
+}
+
+// Helper function to update article in dashboard data
+function updateArticleInData(articleId, updates) {
+  const data = readDashboardData();
+  const articleIndex = data.articles.findIndex(a => a.id === articleId);
+  
+  if (articleIndex !== -1) {
+    data.articles[articleIndex] = { ...data.articles[articleIndex], ...updates };
+    const success = writeDashboardData(data);
+    return success ? data.articles[articleIndex] : null;
+  }
+  return null;
+}
 
 export async function GET() {
   const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -31,7 +71,51 @@ export async function POST(request) {
     const body = await request.json();
     console.log('Request body received:', JSON.stringify(body, null, 2));
     
-    const { action, title, content, language, summary, source } = body;
+    const { action, title, content, language, summary, source, articleId } = body;
+
+    // Handle status updates (non-AI actions)
+    if (action === 'update_status') {
+      const { status, updates } = body;
+      
+      if (!articleId) {
+        return NextResponse.json({ error: 'Article ID required for status updates' }, { status: 400 });
+      }
+
+      const updatedArticle = updateArticleInData(articleId, { status, ...updates });
+      
+      if (updatedArticle) {
+        return NextResponse.json({ 
+          success: true, 
+          article: updatedArticle 
+        });
+      } else {
+        return NextResponse.json({ 
+          error: 'Failed to update article status' 
+        }, { status: 500 });
+      }
+    }
+
+    // Handle content updates (saving editorial changes)
+    if (action === 'update_content') {
+      const { updates } = body;
+      
+      if (!articleId) {
+        return NextResponse.json({ error: 'Article ID required for content updates' }, { status: 400 });
+      }
+
+      const updatedArticle = updateArticleInData(articleId, updates);
+      
+      if (updatedArticle) {
+        return NextResponse.json({ 
+          success: true, 
+          article: updatedArticle 
+        });
+      } else {
+        return NextResponse.json({ 
+          error: 'Failed to update article content' 
+        }, { status: 500 });
+      }
+    }
 
     if (action === 'generate_title') {
       console.log('Starting title generation for:', title);
@@ -120,6 +204,14 @@ Generate ONE punchy headline that's better than the original:`;
 
       // Clean up the title (remove quotes if AI added them)
       const cleanTitle = newTitle.replace(/^["']|["']$/g, '').trim();
+
+      // Save the generated title to the article
+      if (articleId) {
+        updateArticleInData(articleId, { 
+          aiTitle: cleanTitle,
+          status: 'title_review'
+        });
+      }
 
       console.log('Title generated successfully:', cleanTitle);
       
@@ -223,6 +315,21 @@ Provide only the Korean translation:`;
 
       // Clean up the translation (remove quotes if AI added them)
       const cleanTranslation = translation.replace(/^["']|["']$/g, '').trim();
+
+      // Save the translated title to the article
+      if (articleId) {
+        const currentData = readDashboardData();
+        const article = currentData.articles.find(a => a.id === articleId);
+        if (article) {
+          const updatedTranslatedTitles = {
+            ...article.translatedTitles,
+            [language]: cleanTranslation
+          };
+          updateArticleInData(articleId, { 
+            translatedTitles: updatedTranslatedTitles
+          });
+        }
+      }
 
       console.log(`Title translation to ${language} completed successfully:`, cleanTranslation);
       
@@ -385,6 +492,14 @@ Write the news summary now with proper paragraph formatting:`;
       // Convert paragraph breaks to HTML format for display
       const formattedSummary = summary.replace(/\n\n/g, '\n\n').replace(/\n/g, '<br>');
 
+      // Save the generated summary to the article
+      if (articleId) {
+        updateArticleInData(articleId, { 
+          aiSummary: formattedSummary,
+          status: 'summary_review'
+        });
+      }
+
       console.log('Summary generated successfully, length:', summary.length);
       
       return NextResponse.json({ 
@@ -468,6 +583,15 @@ Create a visual representation that captures the essence of the news story throu
           return NextResponse.json({ 
             error: 'No image URL returned from OpenAI' 
           }, { status: 500 });
+        }
+
+        // Save the generated image URL to the article
+        if (articleId) {
+          updateArticleInData(articleId, { 
+            imageUrl: imageUrl,
+            imageGenerated: true,
+            status: 'ready_for_publication'
+          });
         }
 
         console.log('Image generated successfully:', imageUrl);
@@ -581,6 +705,26 @@ Provide only the Korean translation:`;
         }, { status: 500 });
       }
 
+      // Save the translation to the article
+      if (articleId) {
+        const currentData = readDashboardData();
+        const article = currentData.articles.find(a => a.id === articleId);
+        if (article) {
+          const updatedTranslations = {
+            ...article.translations,
+            [language]: translation.replace(/\n/g, '<br>')
+          };
+          
+          // Check if both translations are now complete
+          const bothComplete = updatedTranslations.chinese && updatedTranslations.korean;
+          
+          updateArticleInData(articleId, { 
+            translations: updatedTranslations,
+            status: bothComplete ? 'translation_review' : 'ready_for_translation'
+          });
+        }
+      }
+
       console.log(`Translation to ${language} completed successfully, length:`, translation.length);
       
       return NextResponse.json({ 
@@ -590,7 +734,7 @@ Provide only the Korean translation:`;
     }
 
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image' 
+      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image, update_status, update_content' 
     }, { status: 400 });
 
   } catch (error) {
