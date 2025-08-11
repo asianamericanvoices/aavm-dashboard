@@ -154,7 +154,8 @@ export default function AAVMDashboard() {
         body: JSON.stringify({
           action: 'translate_title',
           title: article.aiTitle,
-          language: language
+          language: language,
+          articleId: articleId  // ✅ ADDED FOR PERSISTENCE
         }),
       });
   
@@ -164,6 +165,7 @@ export default function AAVMDashboard() {
   
       const data = await response.json();
       
+      // ✅ API saves automatically, just update UI
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
@@ -181,12 +183,12 @@ export default function AAVMDashboard() {
   };
   
   const handleDiscardArticle = (articleId) => {
-  if (confirm('Are you sure you want to discard this article?')) {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId ? { ...a, status: 'discarded' } : a
-    ));
-  }
-};
+    if (confirm('Are you sure you want to discard this article?')) {
+      setArticles(prev => prev.map(a => 
+        a.id === articleId ? { ...a, status: 'discarded' } : a
+      ));
+    }
+  };
   
   const handleGenerateTitle = async (articleId) => {
     const article = articles.find(a => a.id === articleId);
@@ -207,7 +209,8 @@ export default function AAVMDashboard() {
         body: JSON.stringify({
           action: 'generate_title',
           title: article.originalTitle,
-          source: article.source
+          source: article.source,
+          articleId: articleId  // ✅ ADDED FOR PERSISTENCE
         }),
       });
 
@@ -217,6 +220,7 @@ export default function AAVMDashboard() {
 
       const data = await response.json();
       
+      // ✅ API saves automatically, just update UI
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
@@ -251,41 +255,52 @@ export default function AAVMDashboard() {
     ));
   };
 
-  const handleApproveTitle = (articleId) => {
+  const handleApproveTitle = async (articleId) => {
     console.log('🟢 APPROVE TITLE CLICKED for article:', articleId);
     
-    setArticles(prev => {
-      const updated = prev.map(a => {
-        if (a.id === articleId) {
-          console.log('📝 Updating article status from:', a.status, 'to: pending_synthesis (for summary)');
-          return {
-            ...a, 
-            status: 'pending_synthesis', 
+    // ✅ Save the approval to the file
+    try {
+      const article = articles.find(a => a.id === articleId);
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update_status',
+          articleId: articleId,
+          status: 'pending_synthesis',
+          updates: {
             editingTitle: false,
-            // Keep both titles for reference
-            displayTitle: a.aiTitle || a.originalTitle
-          };
-        }
-        return a;
+            displayTitle: article?.aiTitle
+          }
+        }),
       });
-      
-      const updatedArticle = updated.find(a => a.id === articleId);
-      console.log('✅ Article after title approval:', {
-        id: updatedArticle.id,
-        status: updatedArticle.status,
-        displayTitle: updatedArticle.displayTitle,
-        editingTitle: updatedArticle.editingTitle
-      });
-      
-      return updated;
-    });
+
+      if (response.ok) {
+        // Update UI to reflect the change
+        setArticles(prev => prev.map(a => {
+          if (a.id === articleId) {
+            return {
+              ...a, 
+              status: 'pending_synthesis', 
+              editingTitle: false,
+              displayTitle: a.aiTitle || a.originalTitle
+            };
+          }
+          return a;
+        }));
+      }
+    } catch (error) {
+      console.error('Error saving title approval:', error);
+    }
   };
 
   const handleGenerateSummary = async (articleId) => {
     const article = articles.find(a => a.id === articleId);
     if (!article) return;
 
-    // FIXED: Check if we have full content to work with
+    // Check if we have full content to work with
     if (!article.fullContent || article.fullContent.trim().length < 100) {
       alert('Full article content not available. Please re-run the scraper to capture complete article text.');
       return;
@@ -307,8 +322,8 @@ export default function AAVMDashboard() {
           action: 'summarize',
           title: article.displayTitle || article.aiTitle || article.originalTitle,
           source: article.source,
-          // FIXED: Use fullContent instead of constructed content
-          content: article.fullContent
+          content: article.fullContent,
+          articleId: articleId  // ✅ ADDED FOR PERSISTENCE
         }),
       });
 
@@ -319,6 +334,7 @@ export default function AAVMDashboard() {
 
       const data = await response.json();
       
+      // ✅ API saves automatically, just update UI
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
@@ -351,31 +367,41 @@ export default function AAVMDashboard() {
     ));
   };
 
-  const handleApproveSummary = (articleId) => {
+  const handleApproveSummary = async (articleId) => {
     console.log('🟢 APPROVE SUMMARY CLICKED for article:', articleId);
     
-    setArticles(prev => {
-      const updated = prev.map(a => {
-        if (a.id === articleId) {
-          console.log('📝 Updating article status from:', a.status, 'to: ready_for_translation');
-          return {
-            ...a, 
-            status: 'ready_for_translation', 
+    // ✅ Save the approval to the file
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update_status',
+          articleId: articleId,
+          status: 'ready_for_translation',
+          updates: {
             editingSummary: false
-          };
-        }
-        return a;
+          }
+        }),
       });
-      
-      const updatedArticle = updated.find(a => a.id === articleId);
-      console.log('✅ Article after update:', {
-        id: updatedArticle.id,
-        status: updatedArticle.status,
-        editingSummary: updatedArticle.editingSummary
-      });
-      
-      return updated;
-    });
+
+      if (response.ok) {
+        setArticles(prev => prev.map(a => {
+          if (a.id === articleId) {
+            return {
+              ...a, 
+              status: 'ready_for_translation', 
+              editingSummary: false
+            };
+          }
+          return a;
+        }));
+      }
+    } catch (error) {
+      console.error('Error saving summary approval:', error);
+    }
   };
 
   const handleEditTranslation = (articleId, language, newTranslation) => {
@@ -460,7 +486,8 @@ export default function AAVMDashboard() {
       const requestBody = {
         action: 'translate',
         language: language,
-        summary: summaryText
+        summary: summaryText,
+        articleId: articleId  // ✅ ADDED FOR PERSISTENCE
       };
 
       const response = await fetch(window.location.origin + '/api/ai', {
@@ -484,13 +511,14 @@ export default function AAVMDashboard() {
       }
       
       // Check if both translations will be done after this one
-      const currentArticle = articles.find(a => a.id === articleId);
+      const currentArticleCheck = articles.find(a => a.id === articleId);
       const otherLanguage = language === 'chinese' ? 'korean' : 'chinese';
-      const otherTranslationExists = currentArticle.translations[otherLanguage] && 
-                                   currentArticle.translations[otherLanguage] !== 'Translating...';
+      const otherTranslationExists = currentArticleCheck.translations[otherLanguage] && 
+                                   currentArticleCheck.translations[otherLanguage] !== 'Translating...';
       
       const bothTranslationsDone = otherTranslationExists && data.result;
 
+      // ✅ API saves automatically, just update UI
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
@@ -539,7 +567,8 @@ export default function AAVMDashboard() {
         body: JSON.stringify({
           action: 'generate_image',
           title: article.displayTitle || article.aiTitle || article.originalTitle,
-          source: article.source
+          source: article.source,
+          articleId: articleId  // ✅ ADDED FOR PERSISTENCE
         }),
       });
 
@@ -549,6 +578,7 @@ export default function AAVMDashboard() {
 
       const data = await response.json();
       
+      // ✅ API saves automatically, just update UI
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
@@ -686,9 +716,9 @@ export default function AAVMDashboard() {
                   </div>
 
                   {/* Article Preview for pending synthesis */}
-                                    {article.status === 'pending_synthesis' && (
-                                      <ArticlePreview article={article} />
-                                    )}
+                  {article.status === 'pending_synthesis' && (
+                    <ArticlePreview article={article} />
+                  )}
                   {/* Title Section */}
                   <div className="mb-3">
                     <div className="mb-2">
