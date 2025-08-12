@@ -335,7 +335,7 @@ async function tryDirectScraping(url) {
 async function tryEventRegistryScraping(url) {
   try {
     // Check if Event Registry API key is available
-    const EVENT_REGISTRY_API_KEY = process.env.EVENT_REGISTRY_API_KEY;
+    const EVENT_REGISTRY_API_KEY = process.env.NEWSAPI_AI_KEY;
     
     if (!EVENT_REGISTRY_API_KEY) {
       console.log('⚠️ Event Registry API key not found, skipping fallback');
