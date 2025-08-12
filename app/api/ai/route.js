@@ -1,4 +1,4 @@
-// app/api/ai/route.js - Enhanced with optional Supabase integration
+// app/api/ai/route.js - Enhanced with start_over functionality
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -67,7 +67,9 @@ async function readDashboardData() {
         imageGenerated: article.image_generated || false,
         imageUrl: article.image_url,
         priority: article.priority,
-        relevanceScore: article.relevance_score
+        relevanceScore: article.relevance_score,
+        contentQuality: article.content_quality || 'unknown',
+        wordCount: article.word_count || 0
       }));
 
       return {
@@ -133,13 +135,13 @@ async function updateArticleInData(articleId, updates) {
       
       // Convert dashboard format to Supabase format
       const supabaseUpdates = {};
-      if (updates.aiTitle) supabaseUpdates.ai_title = updates.aiTitle;
-      if (updates.aiSummary) supabaseUpdates.ai_summary = updates.aiSummary;
-      if (updates.displayTitle) supabaseUpdates.display_title = updates.displayTitle;
-      if (updates.status) supabaseUpdates.status = updates.status;
-      if (updates.translations) supabaseUpdates.translations = updates.translations;
-      if (updates.translatedTitles) supabaseUpdates.translated_titles = updates.translatedTitles;
-      if (updates.imageUrl) supabaseUpdates.image_url = updates.imageUrl;
+      if (updates.aiTitle !== undefined) supabaseUpdates.ai_title = updates.aiTitle;
+      if (updates.aiSummary !== undefined) supabaseUpdates.ai_summary = updates.aiSummary;
+      if (updates.displayTitle !== undefined) supabaseUpdates.display_title = updates.displayTitle;
+      if (updates.status !== undefined) supabaseUpdates.status = updates.status;
+      if (updates.translations !== undefined) supabaseUpdates.translations = updates.translations;
+      if (updates.translatedTitles !== undefined) supabaseUpdates.translated_titles = updates.translatedTitles;
+      if (updates.imageUrl !== undefined) supabaseUpdates.image_url = updates.imageUrl;
       if (updates.imageGenerated !== undefined) supabaseUpdates.image_generated = updates.imageGenerated;
       
       const { data, error } = await supabase
@@ -231,6 +233,45 @@ export async function POST(request) {
     console.log('Request body received:', JSON.stringify(body, null, 2));
     
     const { action, title, content, language, summary, source, articleId } = body;
+
+    // NEW: Handle start over action
+    if (action === 'start_over') {
+      console.log('🔄 START OVER REQUEST:', { action, articleId, body });
+      
+      if (!articleId) {
+        return NextResponse.json({ error: 'Article ID required for start over' }, { status: 400 });
+      }
+
+      // Reset article to original state
+      const resetUpdates = {
+        status: 'pending_synthesis',
+        aiTitle: null,
+        aiSummary: null,
+        displayTitle: null,
+        translations: { chinese: null, korean: null },
+        translatedTitles: { chinese: null, korean: null },
+        imageGenerated: false,
+        imageUrl: null
+      };
+
+      try {
+        const updatedArticle = await updateArticleInData(articleId, resetUpdates);
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: `Article reset successfully ${supabase ? '(Supabase)' : '(File System)'}`,
+          articleId: articleId,
+          updates: resetUpdates,
+          article: updatedArticle
+        });
+      } catch (error) {
+        console.error('Error resetting article:', error);
+        return NextResponse.json({ 
+          error: 'Failed to reset article',
+          details: error.message 
+        }, { status: 500 });
+      }
+    }
 
     // Handle status updates (non-AI actions)
     if (action === 'update_status') {
@@ -899,7 +940,7 @@ Provide only the Korean translation:`;
     }
 
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image, update_status, update_content' 
+      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image, update_status, update_content, start_over' 
     }, { status: 400 });
 
   } catch (error) {
