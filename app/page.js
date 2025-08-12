@@ -52,7 +52,7 @@ export default function AAVMDashboard() {
   };
 
   useEffect(() => {
-    fetch('/dashboard_data.json')
+    fetch('/api/ai?type=dashboard')
       .then(response => {
         if (!response.ok) {
           throw new Error('Dashboard data not found');
