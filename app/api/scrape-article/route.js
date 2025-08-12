@@ -8,185 +8,199 @@ export async function POST(request) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
+    console.log('🌐 Scraping with AAVM logic for:', url);
+
+    // PORTED: Your sophisticated content fetching logic
+    const fetchFullArticleContent = async (url, title) => {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          },
+          timeout: 15000
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        let text = await response.text();
+        
+        // PORTED: Your exact HTML cleaning logic
+        text = text.replace(/<script.*?<\/script>/gis, '');
+        text = text.replace(/<style.*?<\/style>/gis, '');
+        text = text.replace(/<nav.*?<\/nav>/gis, '');
+        text = text.replace(/<header.*?<\/header>/gis, '');
+        text = text.replace(/<footer.*?<\/footer>/gis, '');
+        text = text.replace(/<aside.*?<\/aside>/gis, '');
+        text = text.replace(/<[^>]+>/g, '');
+        text = text.replace(/\s+/g, ' ').trim();
+        
+        // PORTED: Your sentence filtering logic
+        const sentences = text.split('.').map(s => s.trim()).filter(s => s);
+        const titleWords = new Set(title.toLowerCase().split());
+        const relevantSentences = [];
+        
+        for (const sentence of sentences) {
+          if (sentence.length > 50) {
+            const sentenceWords = new Set(sentence.toLowerCase().split());
+            const hasRelevantContent = (
+              titleWords.size > 0 && [...titleWords].some(word => sentence.toLowerCase().includes(word)) ||
+              sentence.length > 100 ||
+              /\b(said|according|reported|stated)\b/i.test(sentence)
+            );
+            
+            if (hasRelevantContent) {
+              relevantSentences.push(sentence);
+            }
+          }
+        }
+        
+        const fullContent = relevantSentences.slice(0, 30).join('. ') + '.';
+        const wordCount = fullContent.split(' ').length;
+        
+        // PORTED: Your quality assessment
+        let quality;
+        if (wordCount >= 300) quality = "excellent";
+        else if (wordCount >= 200) quality = "good";
+        else if (wordCount >= 100) quality = "medium";
+        else if (wordCount >= 50) quality = "poor";
+        else quality = "insufficient";
+        
+        return { content: fullContent, quality, wordCount };
+        
+      } catch (error) {
+        console.log('Content fetch failed:', error.message);
+        return { content: "", quality: "failed", wordCount: 0 };
+      }
+    };
+
+    // PORTED: Your exact relevance scoring
+    const calculateRelevanceScore = (title, description = "") => {
+      const text = `${title} ${description}`.toLowerCase();
+      let score = 2.0; // Your base score
+      
+      // PORTED: Your AA keywords (exact same)
+      const aaKeywords = [
+        "asian american", "chinese american", "korean american", "vietnamese american",
+        "filipino american", "japanese american", "south asian", "southeast asian",
+        "immigration", "medicare", "healthcare", "education", "voting", "election",
+        "hate crime", "discrimination", "civil rights", "community center",
+        "small business", "chinatown", "koreatown", "language access", "translation",
+        "diaspora", "green card", "naturalization", "intergenerational",
+        "model minority", "bamboo ceiling", "affirmative action"
+      ];
+      
+      // PORTED: Your scoring logic
+      for (const keyword of aaKeywords) {
+        if (text.includes(keyword)) {
+          if (keyword.includes("asian american")) {
+            score += 4.0;
+          } else {
+            score += 2.0;
+          }
+        }
+      }
+      
+      // PORTED: Your topic scoring
+      const highRelevance = ["immigration", "healthcare", "education", "voting", "discrimination", "policy"];
+      const mediumRelevance = ["economy", "business", "community", "cultural", "federal", "government"];
+      
+      for (const topic of highRelevance) {
+        if (text.includes(topic)) score += 1.5;
+      }
+      
+      for (const topic of mediumRelevance) {
+        if (text.includes(topic)) score += 0.8;
+      }
+      
+      // PORTED: Your geographic relevance
+      const locations = ["california", "new york", "texas", "georgia", "virginia", "washington", "hawaii"];
+      for (const location of locations) {
+        if (text.includes(location)) score += 0.3;
+      }
+      
+      score += 1.0;
+      return Math.min(score, 10.0);
+    };
+
+    // PORTED: Your topic classification
+    const classifyTopic = (title, description = "") => {
+      const text = `${title} ${description}`.toLowerCase();
+      
+      if (/health|medicare|insurance|hospital|medical/.test(text)) return "Healthcare";
+      if (/economy|job|employment|business|market|trade/.test(text)) return "Economy";
+      if (/election|voting|politics|government|policy/.test(text)) return "Politics";
+      if (/school|education|student|university|college/.test(text)) return "Education";
+      if (/immigration|visa|citizen|border/.test(text)) return "Immigration";
+      if (/culture|festival|community|celebration|tradition/.test(text)) return "Culture";
+      return "General";
+    };
+
+    // PORTED: Your priority determination
+    const determinePriority = (relevanceScore, publishedHoursAgo) => {
+      if (relevanceScore >= 6.0 && publishedHoursAgo <= 24) return "high";
+      if (relevanceScore >= 4.0 && publishedHoursAgo <= 48) return "medium";
+      return "low";
+    };
+
+    // Extract basic metadata
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       timeout: 10000
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+    
     const html = await response.text();
     
-    // Better extraction logic
-    const getMetaContent = (name) => {
-      const patterns = [
-        new RegExp(`<meta[^>]+name=["']${name}["'][^>]+content=["']([^"']+)["']`, 'i'),
-        new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${name}["']`, 'i'),
-        new RegExp(`<meta[^>]+property=["']og:${name}["'][^>]+content=["']([^"']+)["']`, 'i'),
-        new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:${name}["']`, 'i')
-      ];
-      
-      for (const pattern of patterns) {
-        const match = html.match(pattern);
-        if (match) return match[1];
-      }
-      return null;
-    };
-
-    // Extract title
-    const title = getMetaContent('title') || 
-                  html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ||
-                  html.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1];
-
-    // Extract description
-    const description = getMetaContent('description');
-
-    // FIXED: Better author extraction
-    let author = null;
+    // Extract title and description
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].replace(/&[^;]+;/g, '').trim() : `Article from ${new URL(url).hostname}`;
     
-    // Try multiple author extraction methods
-    const authorPatterns = [
-      // NPR specific patterns
-      /class="byline-name"[^>]*>([^<]+)</i,
-      /class="[^"]*byline[^"]*"[^>]*>([^<]+)</i,
-      // Generic patterns
-      /[Bb]y\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
-      /"author"[^>]*>([^<]+)</i,
-      /rel="author"[^>]*>([^<]+)</i,
-      /class="author"[^>]*>([^<]+)</i
-    ];
+    const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
+    const description = descMatch ? descMatch[1].replace(/&[^;]+;/g, '').trim() : '';
 
-    for (const pattern of authorPatterns) {
-      const match = html.match(pattern);
-      if (match && match[1] && match[1].length < 50 && /^[A-Za-z\s\-\.]+$/.test(match[1])) {
-        author = match[1].trim();
-        break;
-      }
-    }
+    // Extract author (simplified)
+    const authorMatch = html.match(/[Bb]y\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/);
+    const author = authorMatch ? authorMatch[1].trim() : 'Staff Writer';
 
-    // Extract content
-    const contentMatch = html.match(/<p[^>]*>([^<]{50,500})<\/p>/);
-    const content = contentMatch ? contentMatch[1] : null;
-
-    // Extract dateline (city at start of articles)
-    let dateline = null;
-    if (content) {
-      const datelinePattern = /^([A-Z]{2,}(?:\s+[A-Z]{2,})*)\s*[—\-–]/;
-      const datelineMatch = content.match(datelinePattern);
-      if (datelineMatch) {
-        dateline = datelineMatch[1];
-      }
-    }
-
+    // Fetch full content using your logic
+    const contentData = await fetchFullArticleContent(url, title);
+    
+    // Use your exact scoring
+    const relevanceScore = calculateRelevanceScore(title, description);
+    const topic = classifyTopic(title, description);
+    const priority = determinePriority(relevanceScore, 24); // Assume recent for manual adds
+    
     const hostname = new URL(url).hostname.replace('www.', '');
-    const cleanTitle = title?.replace(/&[^;]+;/g, '').trim() || `Article from ${hostname}`;
     
-    // ADDED: Smart relevance and priority scoring
-    const calculateRelevance = (title, description, content, source) => {
-      let score = 5.0; // Base score
-      const text = `${title} ${description} ${content}`.toLowerCase();
-      
-      // Asian American relevance keywords
-      const asianAmericanKeywords = [
-        'asian american', 'asian-american', 'aapi', 'chinese american', 'korean american',
-        'japanese american', 'vietnamese american', 'filipino american', 'indian american',
-        'taiwan', 'hong kong', 'china', 'korea', 'japan', 'vietnam', 'philippines', 'india',
-        'immigration', 'visa', 'citizenship', 'diversity', 'discrimination', 'hate crime',
-        'college admission', 'affirmative action', 'harvard', 'ucla', 'education'
-      ];
-      
-      // High relevance topics
-      const highRelevanceTopics = [
-        'civil rights', 'voting rights', 'healthcare', 'education policy', 'immigration policy',
-        'supreme court', 'federal funding', 'university', 'college', 'student'
-      ];
-      
-      // Count keyword matches
-      let asianAmericanMatches = 0;
-      let highRelevanceMatches = 0;
-      
-      asianAmericanKeywords.forEach(keyword => {
-        if (text.includes(keyword)) asianAmericanMatches++;
-      });
-      
-      highRelevanceTopics.forEach(keyword => {
-        if (text.includes(keyword)) highRelevanceMatches++;
-      });
-      
-      // Adjust score based on matches
-      score += asianAmericanMatches * 1.5; // +1.5 per Asian American keyword
-      score += highRelevanceMatches * 0.5; // +0.5 per high relevance topic
-      
-      // Source bonus (trusted news sources)
-      const trustedSources = ['npr', 'reuters', 'ap', 'bbc', 'washingtonpost', 'nytimes'];
-      if (trustedSources.some(s => hostname.includes(s))) {
-        score += 0.5;
-      }
-      
-      return Math.min(Math.max(score, 1.0), 10.0); // Clamp between 1-10
-    };
-    
-    const calculatePriority = (relevanceScore, title, description) => {
-      const text = `${title} ${description}`.toLowerCase();
-      
-      // High priority indicators
-      const urgentKeywords = [
-        'breaking', 'urgent', 'emergency', 'crisis', 'lawsuit', 'court ruling',
-        'supreme court', 'federal', 'trump', 'biden', 'congress', 'senate'
-      ];
-      
-      const hasUrgentKeywords = urgentKeywords.some(keyword => text.includes(keyword));
-      
-      if (relevanceScore >= 8.0 || hasUrgentKeywords) return 'high';
-      if (relevanceScore >= 6.0) return 'medium';
-      return 'low';
-    };
-    
-    const relevanceScore = calculateRelevance(cleanTitle, description, content, hostname);
-    const priority = calculatePriority(relevanceScore, cleanTitle, description);
-    
-    // Determine topic based on content
-    const determineTopic = (title, description, content) => {
-      const text = `${title} ${description} ${content}`.toLowerCase();
-      
-      if (text.includes('education') || text.includes('university') || text.includes('college') || text.includes('school')) {
-        return 'Education';
-      }
-      if (text.includes('health') || text.includes('medical') || text.includes('hospital')) {
-        return 'Healthcare';
-      }
-      if (text.includes('immigration') || text.includes('visa') || text.includes('citizenship')) {
-        return 'Immigration';
-      }
-      if (text.includes('election') || text.includes('voting') || text.includes('political') || text.includes('congress')) {
-        return 'Politics';
-      }
-      if (text.includes('economy') || text.includes('inflation') || text.includes('jobs') || text.includes('employment')) {
-        return 'Economy';
-      }
-      
-      return 'General';
-    };
+    console.log('✅ AAVM extraction complete:', {
+      titleLength: title.length,
+      contentLength: contentData.content.length,
+      quality: contentData.quality,
+      wordCount: contentData.wordCount,
+      relevanceScore,
+      priority
+    });
 
     return NextResponse.json({
-      title: cleanTitle,
-      author: author || 'Staff Writer',
-      content: content || 'Content preview not available',
-      description: description?.replace(/&[^;]+;/g, '').trim() || 'No description available',
+      title,
+      author,
+      content: contentData.content,
+      description: description || 'No description available',
       source: hostname.charAt(0).toUpperCase() + hostname.slice(1),
-      dateline: dateline || '',
-      relevanceScore: Math.round(relevanceScore * 10) / 10, // Round to 1 decimal
-      priority: priority,
-      topic: determineTopic(cleanTitle, description, content),
+      dateline: '', // Could add your dateline extraction here
+      relevanceScore: Math.round(relevanceScore * 10) / 10,
+      priority,
+      topic,
+      contentQuality: contentData.quality,
+      wordCount: contentData.wordCount,
       success: true
     });
 
   } catch (error) {
-    console.error('Scraping error:', error);
+    console.error('❌ AAVM scraping error:', error);
     return NextResponse.json({ 
       error: error.message,
       success: false 
