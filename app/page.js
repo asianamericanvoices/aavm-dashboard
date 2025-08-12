@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap, X, ExternalLink } from 'lucide-react';
+import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap, X, ExternalLink, Filter, RotateCcw, ChevronDown } from 'lucide-react';
 
 export default function AAVMDashboard() {
   const [articles, setArticles] = useState([]);
+  const [filteredArticles, setFilteredArticles] = useState([]);
   const [analytics, setAnalytics] = useState({
     articles_scraped_today: 0,
     pending_translation: 0,
@@ -15,6 +16,18 @@ export default function AAVMDashboard() {
   const [lastUpdated, setLastUpdated] = useState('');
   const [activeTab, setActiveTab] = useState('pipeline');
   const [selectedArticle, setSelectedArticle] = useState(null);
+  
+  // Filter and sort states
+  const [filters, setFilters] = useState({
+    status: 'all',
+    topic: 'all',
+    priority: 'all',
+    relevanceMin: 0,
+    relevanceMax: 10,
+    source: 'all'
+  });
+  const [sortBy, setSortBy] = useState('date-desc');
+  const [showFilters, setShowFilters] = useState(false);
 
   const getAuthorDisplay = (author, source) => {
     if (author && 
@@ -51,6 +64,52 @@ export default function AAVMDashboard() {
     }
   };
 
+  // Filter and sort functions
+  const applyFiltersAndSort = (articlesList = articles) => {
+    let filtered = articlesList.filter(article => {
+      if (article.status === 'discarded') return false;
+      
+      if (filters.status !== 'all' && article.status !== filters.status) return false;
+      if (filters.topic !== 'all' && article.topic !== filters.topic) return false;
+      if (filters.priority !== 'all' && article.priority !== filters.priority) return false;
+      if (filters.source !== 'all' && article.source !== filters.source) return false;
+      if (article.relevanceScore < filters.relevanceMin || article.relevanceScore > filters.relevanceMax) return false;
+      
+      return true;
+    });
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc':
+          return new Date(b.scrapedDate) - new Date(a.scrapedDate);
+        case 'date-asc':
+          return new Date(a.scrapedDate) - new Date(b.scrapedDate);
+        case 'relevance-desc':
+          return b.relevanceScore - a.relevanceScore;
+        case 'relevance-asc':
+          return a.relevanceScore - b.relevanceScore;
+        case 'priority':
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        case 'title':
+          return (a.displayTitle || a.aiTitle || a.originalTitle).localeCompare(
+            b.displayTitle || b.aiTitle || b.originalTitle
+          );
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredArticles(filtered);
+  };
+
+  // Get unique values for filter dropdowns
+  const getUniqueValues = (field) => {
+    const values = [...new Set(articles.map(article => article[field]))];
+    return values.filter(Boolean);
+  };
+
   useEffect(() => {
     fetch('/api/ai?type=dashboard')
       .then(response => {
@@ -78,6 +137,11 @@ export default function AAVMDashboard() {
       });
   }, []);
 
+  // Apply filters whenever articles, filters, or sortBy changes
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [articles, filters, sortBy]);
+
   const setSampleData = () => {
     setArticles([
       {
@@ -103,6 +167,58 @@ export default function AAVMDashboard() {
       published_articles: 0,
       total_articles: 1
     });
+  };
+
+  // Start Over functionality
+  const handleStartOver = async (articleId) => {
+    if (!confirm('Are you sure you want to start over? This will reset all AI-generated content and translations for this article.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'start_over',
+          articleId: articleId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start over');
+      }
+
+      const data = await response.json();
+      
+      // Update the article in the UI to reflect the reset
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              status: 'pending_synthesis',
+              aiTitle: null,
+              aiSummary: null,
+              displayTitle: null,
+              translations: { chinese: null, korean: null },
+              translatedTitles: { chinese: null, korean: null },
+              imageGenerated: false,
+              imageUrl: null,
+              editingTitle: false,
+              editingSummary: false,
+              editingChinese: false,
+              editingKorean: false
+            }
+          : a
+      ));
+
+      console.log('✅ Article reset successfully:', data);
+    } catch (error) {
+      console.error('Error starting over:', error);
+      alert('Failed to start over. Please try again.');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -676,6 +792,164 @@ export default function AAVMDashboard() {
       </div>
     </div>
   );
+
+  const FilterControls = () => (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Filters & Sorting</h3>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+        >
+          <Filter className="w-4 h-4" />
+          <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      
+      {showFilters && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded text-sm"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending_synthesis">Pending Synthesis</option>
+              <option value="title_review">Title Review</option>
+              <option value="summary_review">Summary Review</option>
+              <option value="ready_for_translation">Ready for Translation</option>
+              <option value="translation_review">Translation Review</option>
+              <option value="ready_for_image">Ready for Image</option>
+              <option value="ready_for_publication">Ready for Publication</option>
+              <option value="published">Published</option>
+            </select>
+          </div>
+
+          {/* Topic Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+            <select
+              value={filters.topic}
+              onChange={(e) => setFilters(prev => ({ ...prev, topic: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded text-sm"
+            >
+              <option value="all">All Topics</option>
+              {getUniqueValues('topic').map(topic => (
+                <option key={topic} value={topic}>{topic}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Priority Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+            <select
+              value={filters.priority}
+              onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded text-sm"
+            >
+              <option value="all">All Priorities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+
+          {/* Source Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+            <select
+              value={filters.source}
+              onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded text-sm"
+            >
+              <option value="all">All Sources</option>
+              {getUniqueValues('source').map(source => (
+                <option key={source} value={source}>{source}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Relevance Score Range */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Relevance Score: {filters.relevanceMin} - {filters.relevanceMax}
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="0.5"
+                value={filters.relevanceMin}
+                onChange={(e) => setFilters(prev => ({ 
+                  ...prev, 
+                  relevanceMin: parseFloat(e.target.value) 
+                }))}
+                className="flex-1"
+              />
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="0.5"
+                value={filters.relevanceMax}
+                onChange={(e) => setFilters(prev => ({ 
+                  ...prev, 
+                  relevanceMax: parseFloat(e.target.value) 
+                }))}
+                className="flex-1"
+              />
+            </div>
+          </div>
+
+          {/* Sort By */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded text-sm"
+            >
+              <option value="date-desc">Date (Newest First)</option>
+              <option value="date-asc">Date (Oldest First)</option>
+              <option value="relevance-desc">Relevance (High to Low)</option>
+              <option value="relevance-asc">Relevance (Low to High)</option>
+              <option value="priority">Priority (High to Low)</option>
+              <option value="title">Title (A-Z)</option>
+            </select>
+          </div>
+
+          {/* Reset Filters */}
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setFilters({
+                  status: 'all',
+                  topic: 'all',
+                  priority: 'all',
+                  relevanceMin: 0,
+                  relevanceMax: 10,
+                  source: 'all'
+                });
+                setSortBy('date-desc');
+              }}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      )}
+      
+      <div className="mt-4 text-sm text-gray-600">
+        Showing {filteredArticles.length} of {articles.filter(a => a.status !== 'discarded').length} articles
+      </div>
+    </div>
+  );
   
   const ArticlePipeline = () => (
     <div className="space-y-4">
@@ -693,15 +967,22 @@ export default function AAVMDashboard() {
           Manual Add Article
         </button>
       </div>
+
+      <FilterControls />
       
-      {articles.filter(a => a.status !== 'discarded').length === 0 ? (
+      {filteredArticles.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Articles Found</h3>
-          <p className="text-gray-600">Upload your dashboard_data.json file to GitHub to see your scraped articles here.</p>
+          <p className="text-gray-600">
+            {articles.filter(a => a.status !== 'discarded').length === 0 
+              ? "Upload your dashboard_data.json file to GitHub to see your scraped articles here."
+              : "Try adjusting your filters to see more articles."
+            }
+          </p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {articles.filter(a => a.status !== 'discarded').map(article => (
+          {filteredArticles.map(article => (
             <div key={article.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
@@ -719,6 +1000,7 @@ export default function AAVMDashboard() {
                   {article.status === 'pending_synthesis' && (
                     <ArticlePreview article={article} />
                   )}
+                  
                   {/* Title Section */}
                   <div className="mb-3">
                     <div className="mb-2">
@@ -1311,6 +1593,18 @@ export default function AAVMDashboard() {
                     <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
                       ✓ Published
                     </span>
+                  )}
+
+                  {/* Start Over Button - Show for any article that has AI processing */}
+                  {(article.aiTitle || article.aiSummary || article.translations.chinese || article.translations.korean || article.imageUrl) && (
+                    <button 
+                      onClick={() => handleStartOver(article.id)}
+                      className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm flex items-center gap-1"
+                      title="Reset article to original state"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Start Over
+                    </button>
                   )}
 
                   <button 
