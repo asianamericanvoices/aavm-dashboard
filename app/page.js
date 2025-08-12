@@ -700,19 +700,45 @@ export default function AAVMDashboard() {
     }
   };
   
-  const handleApproveManualAdd = () => {
+  const handleApproveManualAdd = async () => {
     if (!manualAddPreview) return;
     
-    // Add to articles list
-    setArticles(prev => [manualAddPreview, ...prev]);
-    
-    // Close modal and reset
-    setShowManualAdd(false);
-    setManualAddUrl('');
-    setManualAddPreview(null);
-    
-    // Optionally save to backend
-    // You can add API call here if needed
+    try {
+      console.log('💾 Saving manual article to backend...');
+      
+      // Save to backend using the same API as other updates
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'add_manual_article',
+          article: manualAddPreview
+        }),
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Manual article saved successfully');
+        
+        // Add to articles list with the real ID from backend
+        const articleWithRealId = { ...manualAddPreview, id: data.articleId || manualAddPreview.id };
+        setArticles(prev => [articleWithRealId, ...prev]);
+        
+        // Close modal and reset
+        setShowManualAdd(false);
+        setManualAddUrl('');
+        setManualAddPreview(null);
+        
+      } else {
+        throw new Error('Failed to save article');
+      }
+      
+    } catch (error) {
+      console.error('Error saving manual article:', error);
+      alert('Failed to save article. Please try again.');
+    }
   };
   
   const handleCancelManualAdd = () => {
