@@ -616,13 +616,63 @@ export default function AAVMDashboard() {
       // Simple URL validation
       new URL(manualAddUrl);
       
-      // Extract basic info from URL
+      // Use a web scraping service to get article content
+      const scrapingResponse = await fetch(window.location.origin + '/api/scrape-article', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: manualAddUrl
+        })
+      });
+  
+      if (scrapingResponse.ok) {
+        const scrapedData = await scrapingResponse.json();
+        
+        // Create preview from scraped data
+        const preview = {
+          id: Date.now(),
+          originalTitle: scrapedData.title || `Article from ${new URL(manualAddUrl).hostname}`,
+          source: scrapedData.source || new URL(manualAddUrl).hostname.replace('www.', ''),
+          author: scrapedData.author || 'N/A',
+          scrapedDate: new Date().toISOString().split('T')[0],
+          originalUrl: manualAddUrl,
+          status: 'pending_synthesis',
+          topic: scrapedData.topic || 'Manual',
+          fullContent: scrapedData.content || 'Content will need to be manually added.',
+          shortDescription: scrapedData.description || scrapedData.content?.substring(0, 200) + '...' || 'No description available',
+          aiSummary: null,
+          aiTitle: null,
+          displayTitle: null,
+          translations: { chinese: null, korean: null },
+          translatedTitles: { chinese: null, korean: null },
+          imageGenerated: false,
+          imageUrl: null,
+          priority: 'medium',
+          relevanceScore: 5.0,
+          dateline: scrapedData.dateline || '',
+          isManualAdd: true,
+          publishedDate: scrapedData.publishedDate || new Date().toISOString().split('T')[0]
+        };
+        
+        setManualAddPreview(preview);
+      } else {
+        // Fallback to basic preview if scraping fails
+        throw new Error('Scraping failed');
+      }
+      
+      setLoadingPreview(false);
+      
+    } catch (error) {
+      console.log('Scraping failed, using basic preview:', error);
+      
+      // Fallback to basic preview
       const urlObj = new URL(manualAddUrl);
       const domain = urlObj.hostname.replace('www.', '');
       
-      // Create a preview article object
-      const preview = {
-        id: Date.now(), // Temporary ID
+      const basicPreview = {
+        id: Date.now(),
         originalTitle: `Article from ${domain}`,
         source: domain.charAt(0).toUpperCase() + domain.slice(1),
         author: 'N/A',
@@ -630,7 +680,7 @@ export default function AAVMDashboard() {
         originalUrl: manualAddUrl,
         status: 'pending_synthesis',
         topic: 'Manual',
-        fullContent: 'Manual article content will need to be added or scraped.',
+        fullContent: 'Article content needs to be manually added or scraped.',
         shortDescription: `Manually added article from ${domain}`,
         aiSummary: null,
         aiTitle: null,
@@ -645,11 +695,7 @@ export default function AAVMDashboard() {
         isManualAdd: true
       };
       
-      setManualAddPreview(preview);
-      setLoadingPreview(false);
-      
-    } catch (error) {
-      alert('Please enter a valid URL (include http:// or https://)');
+      setManualAddPreview(basicPreview);
       setLoadingPreview(false);
     }
   };
@@ -2245,10 +2291,20 @@ export default function AAVMDashboard() {
                     <div className="space-y-2 text-sm">
                       <p><strong>Title:</strong> {manualAddPreview.originalTitle}</p>
                       <p><strong>Source:</strong> {manualAddPreview.source}</p>
+                      <p><strong>Author:</strong> {manualAddPreview.author}</p>
+                      {manualAddPreview.shortDescription && (
+                        <p><strong>Description:</strong> {manualAddPreview.shortDescription}</p>
+                      )}
                       <p><strong>URL:</strong> <a href={manualAddPreview.originalUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{manualAddPreview.originalUrl}</a></p>
                       <p><strong>Date:</strong> {manualAddPreview.scrapedDate}</p>
                       <p><strong>Priority:</strong> {manualAddPreview.priority}</p>
                       <p><strong>Relevance Score:</strong> {manualAddPreview.relevanceScore}/10</p>
+                      {manualAddPreview.fullContent && manualAddPreview.fullContent !== 'Content will need to be manually added.' && (
+                        <div className="mt-3 p-2 bg-gray-100 rounded text-xs">
+                          <strong>Content Preview:</strong>
+                          <p className="mt-1">{manualAddPreview.fullContent.substring(0, 300)}...</p>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex gap-2 mt-4">
