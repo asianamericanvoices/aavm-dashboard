@@ -16,6 +16,10 @@ export default function AAVMDashboard() {
   const [lastUpdated, setLastUpdated] = useState('');
   const [activeTab, setActiveTab] = useState('pipeline');
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualAddUrl, setManualAddUrl] = useState('');
+  const [manualAddPreview, setManualAddPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   
   // Filter and sort states
   const [filters, setFilters] = useState({
@@ -600,6 +604,78 @@ export default function AAVMDashboard() {
     }
   };
 
+  const handleManualAddUrl = async () => {
+    if (!manualAddUrl.trim()) {
+      alert('Please enter a URL');
+      return;
+    }
+  
+    setLoadingPreview(true);
+    
+    try {
+      // Simple URL validation
+      new URL(manualAddUrl);
+      
+      // Extract basic info from URL
+      const urlObj = new URL(manualAddUrl);
+      const domain = urlObj.hostname.replace('www.', '');
+      
+      // Create a preview article object
+      const preview = {
+        id: Date.now(), // Temporary ID
+        originalTitle: `Article from ${domain}`,
+        source: domain.charAt(0).toUpperCase() + domain.slice(1),
+        author: 'N/A',
+        scrapedDate: new Date().toISOString().split('T')[0],
+        originalUrl: manualAddUrl,
+        status: 'pending_synthesis',
+        topic: 'Manual',
+        fullContent: 'Manual article content will need to be added or scraped.',
+        shortDescription: `Manually added article from ${domain}`,
+        aiSummary: null,
+        aiTitle: null,
+        displayTitle: null,
+        translations: { chinese: null, korean: null },
+        translatedTitles: { chinese: null, korean: null },
+        imageGenerated: false,
+        imageUrl: null,
+        priority: 'medium',
+        relevanceScore: 5.0,
+        dateline: '',
+        isManualAdd: true
+      };
+      
+      setManualAddPreview(preview);
+      setLoadingPreview(false);
+      
+    } catch (error) {
+      alert('Please enter a valid URL (include http:// or https://)');
+      setLoadingPreview(false);
+    }
+  };
+  
+  const handleApproveManualAdd = () => {
+    if (!manualAddPreview) return;
+    
+    // Add to articles list
+    setArticles(prev => [manualAddPreview, ...prev]);
+    
+    // Close modal and reset
+    setShowManualAdd(false);
+    setManualAddUrl('');
+    setManualAddPreview(null);
+    
+    // Optionally save to backend
+    // You can add API call here if needed
+  };
+  
+  const handleCancelManualAdd = () => {
+    setShowManualAdd(false);
+    setManualAddUrl('');
+    setManualAddPreview(null);
+    setLoadingPreview(false);
+  };
+  
   const handleTranslateArticle = async (articleId, language) => {
     // First, force save any pending edits
     const currentArticle = articles.find(a => a.id === articleId);
@@ -1005,7 +1081,10 @@ export default function AAVMDashboard() {
             </p>
           )}
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+        <button 
+          onClick={() => setShowManualAdd(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           Manual Add Article
         </button>
@@ -2111,6 +2190,94 @@ export default function AAVMDashboard() {
           </div>
         </div>
       )}
+
+      {/* Manual Add Article Modal */}
+      {showManualAdd && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => handleCancelManualAdd()}
+        >
+          <div 
+            className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Add Article Manually</h2>
+                <button 
+                  onClick={handleCancelManualAdd}
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                {/* URL Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Article URL
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={manualAddUrl}
+                      onChange={(e) => setManualAddUrl(e.target.value)}
+                      placeholder="https://example.com/article-url"
+                      className="flex-1 p-3 border border-gray-300 rounded-lg"
+                    />
+                    <button
+                      onClick={handleManualAddUrl}
+                      disabled={loadingPreview}
+                      className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      {loadingPreview ? 'Loading...' : 'Preview'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                {manualAddPreview && (
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <h3 className="font-medium text-gray-900 mb-3">Article Preview</h3>
+                    <div className="space-y-2 text-sm">
+                      <p><strong>Title:</strong> {manualAddPreview.originalTitle}</p>
+                      <p><strong>Source:</strong> {manualAddPreview.source}</p>
+                      <p><strong>URL:</strong> <a href={manualAddPreview.originalUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{manualAddPreview.originalUrl}</a></p>
+                      <p><strong>Date:</strong> {manualAddPreview.scrapedDate}</p>
+                      <p><strong>Priority:</strong> {manualAddPreview.priority}</p>
+                      <p><strong>Relevance Score:</strong> {manualAddPreview.relevanceScore}/10</p>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={handleApproveManualAdd}
+                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        Add to Dashboard
+                      </button>
+                      <button
+                        onClick={() => setManualAddPreview(null)}
+                        className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                      >
+                        Edit Preview
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!manualAddPreview && !loadingPreview && (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Enter a URL above and click "Preview" to see article details</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}  
     </div>
   );
 }
