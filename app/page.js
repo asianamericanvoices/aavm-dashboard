@@ -701,10 +701,25 @@ export default function AAVMDashboard() {
   };
   
   const handleApproveManualAdd = async () => {
-    if (!manualAddPreview) return;
+    console.log('🎯 APPROVE MANUAL ADD CLICKED');
+    console.log('📄 Manual add preview data:', manualAddPreview);
+    
+    if (!manualAddPreview) {
+      console.error('❌ No manual add preview data!');
+      alert('No preview data available. Please generate a preview first.');
+      return;
+    }
     
     try {
       console.log('💾 Saving manual article to backend...');
+      console.log('🌐 Request URL:', window.location.origin + '/api/ai');
+      
+      const requestPayload = {
+        action: 'add_manual_article',
+        article: manualAddPreview
+      };
+      
+      console.log('📦 Request payload:', JSON.stringify(requestPayload, null, 2));
       
       // Save to backend using the same API as other updates
       const response = await fetch(window.location.origin + '/api/ai', {
@@ -712,11 +727,11 @@ export default function AAVMDashboard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'add_manual_article',
-          article: manualAddPreview
-        }),
+        body: JSON.stringify(requestPayload),
       });
+  
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
   
       if (response.ok) {
         const data = await response.json();
@@ -750,12 +765,13 @@ export default function AAVMDashboard() {
         alert('Article added successfully!');
         
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save article');
+        const errorText = await response.text();
+        console.error('❌ Response not ok:', errorText);
+        throw new Error(`Server responded with ${response.status}: ${errorText}`);
       }
       
     } catch (error) {
-      console.error('Error saving manual article:', error);
+      console.error('💥 Error saving manual article:', error);
       alert(`Failed to save article: ${error.message}`);
     }
   };
