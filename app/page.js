@@ -1725,9 +1725,26 @@ export default function AAVMDashboard() {
                   )}
 
                   {article.status === 'published' && (
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
-                      ✓ Published
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
+                        ✓ Published
+                      </span>
+                      <button 
+                        onClick={() => {
+                          if (confirm('Are you sure you want to unpublish this article?')) {
+                            setArticles(prev => prev.map(a => 
+                              a.id === article.id 
+                                ? { ...a, status: 'ready_for_publication' }
+                                : a
+                            ));
+                          }
+                        }}
+                        className="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-xs"
+                        title="Unpublish article"
+                      >
+                        Undo
+                      </button>
+                    </div>
                   )}
 
                   {/* Start Over Button - Show for any article that has AI processing */}
