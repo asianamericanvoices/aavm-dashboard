@@ -720,24 +720,43 @@ export default function AAVMDashboard() {
   
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Manual article saved successfully');
+        console.log('✅ Manual article saved successfully:', data);
         
-        // Add to articles list with the real ID from backend
-        const articleWithRealId = { ...manualAddPreview, id: data.articleId || manualAddPreview.id };
-        setArticles(prev => [articleWithRealId, ...prev]);
+        // ✅ FIXED: Properly update the articles state with the returned article
+        const articleToAdd = data.article || { ...manualAddPreview, id: data.articleId || manualAddPreview.id };
+        
+        // Update articles state immediately for UI feedback
+        setArticles(prev => [articleToAdd, ...prev]);
+        
+        // Update analytics to reflect the new article
+        setAnalytics(prev => ({
+          ...prev,
+          total_articles: prev.total_articles + 1
+        }));
+        
+        // If we have updated data from the backend (file system case), use it
+        if (data.updatedData) {
+          setArticles(data.updatedData.articles);
+          setAnalytics(data.updatedData.analytics);
+          setLastUpdated(data.updatedData.last_updated);
+        }
         
         // Close modal and reset
         setShowManualAdd(false);
         setManualAddUrl('');
         setManualAddPreview(null);
         
+        // Show success message
+        alert('Article added successfully!');
+        
       } else {
-        throw new Error('Failed to save article');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save article');
       }
       
     } catch (error) {
       console.error('Error saving manual article:', error);
-      alert('Failed to save article. Please try again.');
+      alert(`Failed to save article: ${error.message}`);
     }
   };
   
