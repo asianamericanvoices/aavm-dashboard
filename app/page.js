@@ -630,6 +630,32 @@ export default function AAVMDashboard() {
       if (scrapingResponse.ok) {
         const scrapedData = await scrapingResponse.json();
         
+        // ✅ ADD THIS DEBUG BLOCK - COPY/PASTE THIS ENTIRE SECTION
+        console.log('🔍 DEBUG: Full scraped response:', scrapedData);
+        console.log('🔍 DEBUG: Content details:', {
+          hasContent: !!scrapedData.content,
+          contentLength: scrapedData.content?.length || 0,
+          contentPreview: scrapedData.content?.substring(0, 300) || 'NO CONTENT',
+          contentQuality: scrapedData.contentQuality,
+          wordCount: scrapedData.wordCount,
+          success: scrapedData.success
+        });
+        
+        // ✅ CHECK FOR CONTENT ISSUES AND WARN USER
+        if (!scrapedData.content || scrapedData.content.length < 100) {
+          console.warn('⚠️ DEBUG: Content appears to be too short or empty');
+          console.warn('⚠️ DEBUG: Full content received:', scrapedData.content);
+          
+          // Show warning to user but still allow preview
+          if (confirm(`Warning: The scraped content appears to be very short or empty (${scrapedData.content?.length || 0} characters). This may cause issues when generating AI summaries. Do you want to continue anyway?`)) {
+            // Continue with short content
+          } else {
+            setLoadingPreview(false);
+            return;
+          }
+        }
+        // ✅ END DEBUG BLOCK
+        
         // Create preview from scraped data
         const preview = {
           id: Date.now(),
