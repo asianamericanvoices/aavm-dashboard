@@ -210,7 +210,8 @@ export default function AAVMDashboard() {
               editingSummary: false,
               editingChinese: false,
               editingKorean: false,
-              editingAuthor: false
+              editingAuthor: false,
+              editingDateline: false
             }
           : a
       ));
@@ -379,7 +380,15 @@ export default function AAVMDashboard() {
         : a
     ));
   };
-    
+
+  const handleEditDateline = (articleId, newDateline) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, dateline: newDateline }
+        : a
+    ));
+  };
+  
   const handleApproveTitle = async (articleId) => {
     console.log('🟢 APPROVE TITLE CLICKED for article:', articleId);
     
@@ -1102,61 +1111,125 @@ export default function AAVMDashboard() {
                     )}
                   </div>
                   
-                  <div className="mb-2">
-                    {article.editingAuthor ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">By</span>
-                        <input
-                          id={`author-edit-${article.id}`}
-                          type="text"
-                          defaultValue={article.author || ''}
-                          onBlur={(e) => handleEditAuthor(article.id, e.target.value)}
-                          className="flex-1 p-1 border border-gray-300 rounded text-sm"
-                          placeholder="Enter author name"
-                        />
-                        <button 
-                          onClick={() => {
-                            const input = document.getElementById(`author-edit-${article.id}`);
-                            if (input) {
-                              handleEditAuthor(article.id, input.value);
+                  <div className="mb-2 space-y-2">
+                    {/* Dateline Editor */}
+                    <div>
+                      {article.editingDateline ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            id={`dateline-edit-${article.id}`}
+                            type="text"
+                            defaultValue={article.dateline || ''}
+                            onBlur={(e) => handleEditDateline(article.id, e.target.value)}
+                            className="flex-1 p-1 border border-gray-300 rounded text-sm font-bold uppercase"
+                            placeholder="CITY NAME"
+                          />
+                          <button 
+                            onClick={() => {
+                              const input = document.getElementById(`dateline-edit-${article.id}`);
+                              if (input) {
+                                handleEditDateline(article.id, input.value.toUpperCase());
+                                setArticles(prev => prev.map(a => 
+                                  a.id === article.id ? {...a, editingDateline: false} : a
+                                ));
+                              }
+                            }}
+                            className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                          >
+                            Save
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setArticles(prev => prev.map(a => 
+                                a.id === article.id ? {...a, editingDateline: false} : a
+                              ));
+                            }}
+                            className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {article.dateline ? (
+                            <p className="text-sm font-bold text-gray-900 uppercase">
+                              {article.dateline} —
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-400 italic">No dateline</p>
+                          )}
+                          <button 
+                            onClick={() => {
+                              setArticles(prev => prev.map(a => 
+                                a.id === article.id ? {...a, editingDateline: true} : a
+                              ));
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-xs"
+                            title="Edit dateline"
+                          >
+                            📍
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  
+                    {/* Author Editor */}
+                    <div>
+                      {article.editingAuthor ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">By</span>
+                          <input
+                            id={`author-edit-${article.id}`}
+                            type="text"
+                            defaultValue={article.author || ''}
+                            onBlur={(e) => handleEditAuthor(article.id, e.target.value)}
+                            className="flex-1 p-1 border border-gray-300 rounded text-sm"
+                            placeholder="Enter author name"
+                          />
+                          <button 
+                            onClick={() => {
+                              const input = document.getElementById(`author-edit-${article.id}`);
+                              if (input) {
+                                handleEditAuthor(article.id, input.value);
+                                setArticles(prev => prev.map(a => 
+                                  a.id === article.id ? {...a, editingAuthor: false} : a
+                                ));
+                              }
+                            }}
+                            className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                          >
+                            Save
+                          </button>
+                          <button 
+                            onClick={() => {
                               setArticles(prev => prev.map(a => 
                                 a.id === article.id ? {...a, editingAuthor: false} : a
                               ));
-                            }
-                          }}
-                          className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
-                        >
-                          Save
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setArticles(prev => prev.map(a => 
-                              a.id === article.id ? {...a, editingAuthor: false} : a
-                            ));
-                          }}
-                          className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-gray-600">
-                          By {getAuthorDisplay(article.author, article.source)}
-                        </p>
-                        <button 
-                          onClick={() => {
-                            setArticles(prev => prev.map(a => 
-                              a.id === article.id ? {...a, editingAuthor: true} : a
-                            ));
-                          }}
-                          className="text-blue-600 hover:text-blue-800 text-xs"
-                          title="Edit author"
-                        >
-                          ✏️
-                        </button>
-                      </div>
-                    )}
+                            }}
+                            className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-gray-600">
+                            By {getAuthorDisplay(article.author, article.source)}
+                          </p>
+                          <button 
+                            onClick={() => {
+                              setArticles(prev => prev.map(a => 
+                                a.id === article.id ? {...a, editingAuthor: true} : a
+                              ));
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-xs"
+                            title="Edit author"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {article.imageUrl && (
