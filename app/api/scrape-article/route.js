@@ -1,3 +1,4 @@
+// Enhanced app/api/scrape-article/route.js
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -10,75 +11,171 @@ export async function POST(request) {
 
     console.log('🌐 Scraping with AAVM logic for:', url);
 
-    // PORTED: Your sophisticated content fetching logic
+    // ENHANCED: More sophisticated content fetching
     const fetchFullArticleContent = async (url, title) => {
       try {
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
           },
-          timeout: 15000
+          timeout: 20000, // Increased timeout
+          redirect: 'follow'
         });
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         let text = await response.text();
         
-        // PORTED: Your exact HTML cleaning logic
-        text = text.replace(/<script.*?<\/script>/gis, '');
-        text = text.replace(/<style.*?<\/style>/gis, '');
-        text = text.replace(/<nav.*?<\/nav>/gis, '');
-        text = text.replace(/<header.*?<\/header>/gis, '');
-        text = text.replace(/<footer.*?<\/footer>/gis, '');
-        text = text.replace(/<aside.*?<\/aside>/gis, '');
-        text = text.replace(/<[^>]+>/g, '');
-        text = text.replace(/\s+/g, ' ').trim();
+        // ENHANCED: More comprehensive HTML cleaning
+        text = text.replace(/<script[^>]*>.*?<\/script>/gis, '');
+        text = text.replace(/<style[^>]*>.*?<\/style>/gis, '');
+        text = text.replace(/<nav[^>]*>.*?<\/nav>/gis, '');
+        text = text.replace(/<header[^>]*>.*?<\/header>/gis, '');
+        text = text.replace(/<footer[^>]*>.*?<\/footer>/gis, '');
+        text = text.replace(/<aside[^>]*>.*?<\/aside>/gis, '');
+        text = text.replace(/<noscript[^>]*>.*?<\/noscript>/gis, '');
+        text = text.replace(/<form[^>]*>.*?<\/form>/gis, '');
+        text = text.replace(/<!--.*?-->/gis, '');
         
-        // PORTED: Your sentence filtering logic
-        const sentences = text.split('.').map(s => s.trim()).filter(s => s);
-        const titleWords = new Set(title.toLowerCase().split());
+        // Try to extract article content more intelligently
+        const articleSelectors = [
+          'article',
+          '[role="article"]',
+          '.article-content',
+          '.post-content',
+          '.entry-content',
+          '.content',
+          'main',
+          '.story-body',
+          '.article-body'
+        ];
+        
+        let articleContent = '';
+        for (const selector of articleSelectors) {
+          const regex = new RegExp(`<${selector}[^>]*>(.*?)<\/${selector}>`, 'gis');
+          const match = text.match(regex);
+          if (match && match[1] && match[1].length > articleContent.length) {
+            articleContent = match[1];
+          }
+        }
+        
+        // If we found article content, use that, otherwise use full text
+        if (articleContent.length > 500) {
+          text = articleContent;
+        }
+        
+        // Remove all HTML tags
+        text = text.replace(/<[^>]+>/g, ' ');
+        
+        // Clean up whitespace and decode HTML entities
+        text = text.replace(/&nbsp;/g, ' ')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .replace(/&quot;/g, '"')
+                  .replace(/&#39;/g, "'")
+                  .replace(/\s+/g, ' ')
+                  .trim();
+        
+        // ENHANCED: Better sentence filtering
+        const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
+        const titleWords = new Set(title.toLowerCase().split(/\s+/).filter(word => word.length > 2));
         const relevantSentences = [];
         
         for (const sentence of sentences) {
           if (sentence.length > 50) {
-            const sentenceWords = new Set(sentence.toLowerCase().split());
-            const hasRelevantContent = (
-              titleWords.size > 0 && [...titleWords].some(word => sentence.toLowerCase().includes(word)) ||
-              sentence.length > 100 ||
-              /\b(said|according|reported|stated)\b/i.test(sentence)
-            );
+            const sentenceWords = new Set(sentence.toLowerCase().split(/\s+/));
             
-            if (hasRelevantContent) {
-              relevantSentences.push(sentence);
+            // Enhanced relevance scoring
+            let relevanceScore = 0;
+            
+            // Title word overlap
+            const titleOverlap = [...titleWords].filter(word => 
+              sentence.toLowerCase().includes(word)
+            ).length;
+            relevanceScore += titleOverlap * 2;
+            
+            // Length bonus for substantial sentences
+            if (sentence.length > 100) relevanceScore += 1;
+            if (sentence.length > 200) relevanceScore += 1;
+            
+            // Journalism indicators
+            if (/\b(said|according|reported|stated|announced|revealed|confirmed|disclosed)\b/i.test(sentence)) {
+              relevanceScore += 2;
+            }
+            
+            // Quote indicators
+            if (/"[^"]*"/g.test(sentence)) {
+              relevanceScore += 1;
+            }
+            
+            // Date/time indicators (news relevance)
+            if (/\b(today|yesterday|this week|last month|on \w+day)\b/i.test(sentence)) {
+              relevanceScore += 1;
+            }
+            
+            // Filter out navigation/UI text
+            const isUIText = /\b(click here|read more|subscribe|newsletter|follow us|share this|comments|advertisement)\b/i.test(sentence);
+            
+            if (relevanceScore >= 2 && !isUIText) {
+              relevantSentences.push({ sentence, score: relevanceScore });
             }
           }
         }
         
-        const fullContent = relevantSentences.slice(0, 30).join('. ') + '.';
-        const wordCount = fullContent.split(' ').length;
+        // Sort by relevance score and take the best content
+        relevantSentences.sort((a, b) => b.score - a.score);
+        const bestSentences = relevantSentences.slice(0, 40).map(item => item.sentence);
         
-        // PORTED: Your quality assessment
+        const fullContent = bestSentences.join('. ') + (bestSentences.length > 0 ? '.' : '');
+        const wordCount = fullContent.split(/\s+/).filter(word => word.length > 0).length;
+        
+        // ENHANCED: More nuanced quality assessment
         let quality;
-        if (wordCount >= 300) quality = "excellent";
-        else if (wordCount >= 200) quality = "good";
-        else if (wordCount >= 100) quality = "medium";
-        else if (wordCount >= 50) quality = "poor";
+        if (wordCount >= 400) quality = "excellent";
+        else if (wordCount >= 250) quality = "good";
+        else if (wordCount >= 150) quality = "medium";
+        else if (wordCount >= 75) quality = "poor";
         else quality = "insufficient";
+        
+        // Additional quality factors
+        const hasQuotes = /"[^"]*"/g.test(fullContent);
+        const hasJournalismWords = /\b(said|according|reported|stated)\b/i.test(fullContent);
+        const hasSpecificDetails = /\b(\d{1,2}\/\d{1,2}\/\d{4}|\d{1,2}:\d{2}|percent|million|billion)\b/i.test(fullContent);
+        
+        if (wordCount >= 150 && (hasQuotes || hasJournalismWords || hasSpecificDetails)) {
+          if (quality === "medium") quality = "good";
+          if (quality === "good") quality = "excellent";
+        }
         
         return { content: fullContent, quality, wordCount };
         
       } catch (error) {
         console.log('Content fetch failed:', error.message);
+        
+        // ENHANCED: Fallback strategies
+        if (error.message.includes('timeout')) {
+          return { content: "", quality: "timeout", wordCount: 0 };
+        }
+        if (error.message.includes('403') || error.message.includes('401')) {
+          return { content: "", quality: "blocked", wordCount: 0 };
+        }
+        
         return { content: "", quality: "failed", wordCount: 0 };
       }
     };
 
-    // PORTED: Your exact relevance scoring
+    // EXISTING: Your relevance scoring (unchanged)
     const calculateRelevanceScore = (title, description = "") => {
       const text = `${title} ${description}`.toLowerCase();
-      let score = 2.0; // Your base score
+      let score = 2.0;
       
-      // PORTED: Your AA keywords (exact same)
       const aaKeywords = [
         "asian american", "chinese american", "korean american", "vietnamese american",
         "filipino american", "japanese american", "south asian", "southeast asian",
@@ -89,7 +186,6 @@ export async function POST(request) {
         "model minority", "bamboo ceiling", "affirmative action"
       ];
       
-      // PORTED: Your scoring logic
       for (const keyword of aaKeywords) {
         if (text.includes(keyword)) {
           if (keyword.includes("asian american")) {
@@ -100,7 +196,6 @@ export async function POST(request) {
         }
       }
       
-      // PORTED: Your topic scoring
       const highRelevance = ["immigration", "healthcare", "education", "voting", "discrimination", "policy"];
       const mediumRelevance = ["economy", "business", "community", "cultural", "federal", "government"];
       
@@ -112,7 +207,6 @@ export async function POST(request) {
         if (text.includes(topic)) score += 0.8;
       }
       
-      // PORTED: Your geographic relevance
       const locations = ["california", "new york", "texas", "georgia", "virginia", "washington", "hawaii"];
       for (const location of locations) {
         if (text.includes(location)) score += 0.3;
@@ -122,7 +216,7 @@ export async function POST(request) {
       return Math.min(score, 10.0);
     };
 
-    // PORTED: Your topic classification
+    // EXISTING: Your classification functions (unchanged)
     const classifyTopic = (title, description = "") => {
       const text = `${title} ${description}`.toLowerCase();
       
@@ -135,47 +229,85 @@ export async function POST(request) {
       return "General";
     };
 
-    // PORTED: Your priority determination
     const determinePriority = (relevanceScore, publishedHoursAgo) => {
       if (relevanceScore >= 6.0 && publishedHoursAgo <= 24) return "high";
       if (relevanceScore >= 4.0 && publishedHoursAgo <= 48) return "medium";
       return "low";
     };
 
-    // Extract basic metadata
+    // ENHANCED: Better metadata extraction
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
-      timeout: 10000
+      timeout: 15000
     });
 
     if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
     
     const html = await response.text();
     
-    // Extract title and description
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].replace(/&[^;]+;/g, '').trim() : `Article from ${new URL(url).hostname}`;
+    // ENHANCED: Better title extraction
+    let title = '';
+    const titleMatches = [
+      html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    ];
     
-    const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
-    const description = descMatch ? descMatch[1].replace(/&[^;]+;/g, '').trim() : '';
+    for (const match of titleMatches) {
+      if (match && match[1] && match[1].trim()) {
+        title = match[1].replace(/&[^;]+;/g, '').trim();
+        break;
+      }
+    }
+    
+    if (!title) {
+      title = `Article from ${new URL(url).hostname}`;
+    }
+    
+    // ENHANCED: Better description extraction
+    let description = '';
+    const descMatches = [
+      html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']+)["']/i)
+    ];
+    
+    for (const match of descMatches) {
+      if (match && match[1] && match[1].trim()) {
+        description = match[1].replace(/&[^;]+;/g, '').trim();
+        break;
+      }
+    }
 
-    // Extract author (simplified)
-    const authorMatch = html.match(/[Bb]y\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/);
-    const author = authorMatch ? authorMatch[1].trim() : 'Staff Writer';
+    // ENHANCED: Better author extraction
+    let author = 'N/A';
+    const authorMatches = [
+      html.match(/<meta[^>]+name=["']author["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+property=["']article:author["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/[Bb]y\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/),
+      html.match(/<span[^>]*class="[^"]*author[^"]*"[^>]*>([^<]+)<\/span>/i)
+    ];
+    
+    for (const match of authorMatches) {
+      if (match && match[1] && match[1].trim()) {
+        author = match[1].trim();
+        break;
+      }
+    }
 
-    // Fetch full content using your logic
+    // Fetch content using enhanced logic
     const contentData = await fetchFullArticleContent(url, title);
     
-    // Use your exact scoring
+    // Use existing scoring
     const relevanceScore = calculateRelevanceScore(title, description);
     const topic = classifyTopic(title, description);
-    const priority = determinePriority(relevanceScore, 24); // Assume recent for manual adds
+    const priority = determinePriority(relevanceScore, 24);
     
     const hostname = new URL(url).hostname.replace('www.', '');
     
-    console.log('✅ AAVM extraction complete:', {
+    console.log('✅ ENHANCED AAVM extraction complete:', {
       titleLength: title.length,
       contentLength: contentData.content.length,
       quality: contentData.quality,
@@ -190,7 +322,7 @@ export async function POST(request) {
       content: contentData.content,
       description: description || 'No description available',
       source: hostname.charAt(0).toUpperCase() + hostname.slice(1),
-      dateline: '', // Could add your dateline extraction here
+      dateline: '',
       relevanceScore: Math.round(relevanceScore * 10) / 10,
       priority,
       topic,
@@ -200,7 +332,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('❌ AAVM scraping error:', error);
+    console.error('❌ ENHANCED AAVM scraping error:', error);
     return NextResponse.json({ 
       error: error.message,
       success: false 
