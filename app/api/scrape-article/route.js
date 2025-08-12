@@ -1,4 +1,4 @@
-// Enhanced app/api/scrape-article/route.js
+// app/api/scrape-article/route.js - Enhanced with Event Registry fallback
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -11,7 +11,39 @@ export async function POST(request) {
 
     console.log('🌐 Scraping with AAVM logic for:', url);
 
-    // ENHANCED: More sophisticated content fetching
+    // STEP 1: Try direct scraping first
+    const directResult = await tryDirectScraping(url);
+    
+    // STEP 2: If direct scraping fails or gets poor content, try Event Registry
+    if (directResult.contentQuality === 'insufficient' || 
+        directResult.contentQuality === 'failed' || 
+        directResult.contentQuality === 'blocked' ||
+        directResult.wordCount < 100) {
+      
+      console.log('🔄 Direct scraping failed/insufficient, trying Event Registry...');
+      const eventRegistryResult = await tryEventRegistryScraping(url);
+      
+      if (eventRegistryResult.success && eventRegistryResult.wordCount > directResult.wordCount) {
+        console.log('✅ Event Registry provided better content');
+        return NextResponse.json(eventRegistryResult);
+      }
+    }
+    
+    // Return direct result if it was good enough or Event Registry failed
+    return NextResponse.json(directResult);
+
+  } catch (error) {
+    console.error('❌ Scraping error:', error);
+    return NextResponse.json({ 
+      error: error.message,
+      success: false 
+    }, { status: 500 });
+  }
+}
+
+// Your existing direct scraping logic
+async function tryDirectScraping(url) {
+  try {
     const fetchFullArticleContent = async (url, title) => {
       try {
         const response = await fetch(url, {
@@ -24,15 +56,40 @@ export async function POST(request) {
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
           },
-          timeout: 20000, // Increased timeout
+          timeout: 15000,
           redirect: 'follow'
         });
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          if (response.status === 403 || response.status === 401) {
+            return { content: "", quality: "blocked", wordCount: 0 };
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
         
         let text = await response.text();
         
-        // ENHANCED: More comprehensive HTML cleaning
+        // Check for paywall indicators
+        const paywallIndicators = [
+          'subscribe to continue reading',
+          'this content is for subscribers',
+          'paywall',
+          'premium content',
+          'unlock this article',
+          'become a member',
+          'sign up to read'
+        ];
+        
+        const hasPaywall = paywallIndicators.some(indicator => 
+          text.toLowerCase().includes(indicator)
+        );
+        
+        if (hasPaywall) {
+          console.log('🚫 Paywall detected');
+          return { content: "", quality: "blocked", wordCount: 0 };
+        }
+        
+        // Your existing HTML cleaning logic
         text = text.replace(/<script[^>]*>.*?<\/script>/gis, '');
         text = text.replace(/<style[^>]*>.*?<\/style>/gis, '');
         text = text.replace(/<nav[^>]*>.*?<\/nav>/gis, '');
@@ -58,22 +115,19 @@ export async function POST(request) {
         
         let articleContent = '';
         for (const selector of articleSelectors) {
-          const regex = new RegExp(`<${selector}[^>]*>(.*?)<\/${selector}>`, 'gis');
+          const regex = new RegExp(`<${selector}[^>]*>(.*?)<\/${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}>`, 'gis');
           const match = text.match(regex);
           if (match && match[1] && match[1].length > articleContent.length) {
             articleContent = match[1];
           }
         }
         
-        // If we found article content, use that, otherwise use full text
         if (articleContent.length > 500) {
           text = articleContent;
         }
         
-        // Remove all HTML tags
+        // Remove all HTML tags and clean up
         text = text.replace(/<[^>]+>/g, ' ');
-        
-        // Clean up whitespace and decode HTML entities
         text = text.replace(/&nbsp;/g, ' ')
                   .replace(/&amp;/g, '&')
                   .replace(/&lt;/g, '<')
@@ -83,44 +137,35 @@ export async function POST(request) {
                   .replace(/\s+/g, ' ')
                   .trim();
         
-        // ENHANCED: Better sentence filtering
+        // Your existing sentence filtering logic
         const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
         const titleWords = new Set(title.toLowerCase().split(/\s+/).filter(word => word.length > 2));
         const relevantSentences = [];
         
         for (const sentence of sentences) {
           if (sentence.length > 50) {
-            const sentenceWords = new Set(sentence.toLowerCase().split(/\s+/));
-            
-            // Enhanced relevance scoring
             let relevanceScore = 0;
             
-            // Title word overlap
             const titleOverlap = [...titleWords].filter(word => 
               sentence.toLowerCase().includes(word)
             ).length;
             relevanceScore += titleOverlap * 2;
             
-            // Length bonus for substantial sentences
             if (sentence.length > 100) relevanceScore += 1;
             if (sentence.length > 200) relevanceScore += 1;
             
-            // Journalism indicators
             if (/\b(said|according|reported|stated|announced|revealed|confirmed|disclosed)\b/i.test(sentence)) {
               relevanceScore += 2;
             }
             
-            // Quote indicators
             if (/"[^"]*"/g.test(sentence)) {
               relevanceScore += 1;
             }
             
-            // Date/time indicators (news relevance)
             if (/\b(today|yesterday|this week|last month|on \w+day)\b/i.test(sentence)) {
               relevanceScore += 1;
             }
             
-            // Filter out navigation/UI text
             const isUIText = /\b(click here|read more|subscribe|newsletter|follow us|share this|comments|advertisement)\b/i.test(sentence);
             
             if (relevanceScore >= 2 && !isUIText) {
@@ -129,14 +174,12 @@ export async function POST(request) {
           }
         }
         
-        // Sort by relevance score and take the best content
         relevantSentences.sort((a, b) => b.score - a.score);
         const bestSentences = relevantSentences.slice(0, 40).map(item => item.sentence);
         
         const fullContent = bestSentences.join('. ') + (bestSentences.length > 0 ? '.' : '');
         const wordCount = fullContent.split(/\s+/).filter(word => word.length > 0).length;
         
-        // ENHANCED: More nuanced quality assessment
         let quality;
         if (wordCount >= 400) quality = "excellent";
         else if (wordCount >= 250) quality = "good";
@@ -144,22 +187,11 @@ export async function POST(request) {
         else if (wordCount >= 75) quality = "poor";
         else quality = "insufficient";
         
-        // Additional quality factors
-        const hasQuotes = /"[^"]*"/g.test(fullContent);
-        const hasJournalismWords = /\b(said|according|reported|stated)\b/i.test(fullContent);
-        const hasSpecificDetails = /\b(\d{1,2}\/\d{1,2}\/\d{4}|\d{1,2}:\d{2}|percent|million|billion)\b/i.test(fullContent);
-        
-        if (wordCount >= 150 && (hasQuotes || hasJournalismWords || hasSpecificDetails)) {
-          if (quality === "medium") quality = "good";
-          if (quality === "good") quality = "excellent";
-        }
-        
         return { content: fullContent, quality, wordCount };
         
       } catch (error) {
-        console.log('Content fetch failed:', error.message);
+        console.log('Direct content fetch failed:', error.message);
         
-        // ENHANCED: Fallback strategies
         if (error.message.includes('timeout')) {
           return { content: "", quality: "timeout", wordCount: 0 };
         }
@@ -171,83 +203,19 @@ export async function POST(request) {
       }
     };
 
-    // EXISTING: Your relevance scoring (unchanged)
-    const calculateRelevanceScore = (title, description = "") => {
-      const text = `${title} ${description}`.toLowerCase();
-      let score = 2.0;
-      
-      const aaKeywords = [
-        "asian american", "chinese american", "korean american", "vietnamese american",
-        "filipino american", "japanese american", "south asian", "southeast asian",
-        "immigration", "medicare", "healthcare", "education", "voting", "election",
-        "hate crime", "discrimination", "civil rights", "community center",
-        "small business", "chinatown", "koreatown", "language access", "translation",
-        "diaspora", "green card", "naturalization", "intergenerational",
-        "model minority", "bamboo ceiling", "affirmative action"
-      ];
-      
-      for (const keyword of aaKeywords) {
-        if (text.includes(keyword)) {
-          if (keyword.includes("asian american")) {
-            score += 4.0;
-          } else {
-            score += 2.0;
-          }
-        }
-      }
-      
-      const highRelevance = ["immigration", "healthcare", "education", "voting", "discrimination", "policy"];
-      const mediumRelevance = ["economy", "business", "community", "cultural", "federal", "government"];
-      
-      for (const topic of highRelevance) {
-        if (text.includes(topic)) score += 1.5;
-      }
-      
-      for (const topic of mediumRelevance) {
-        if (text.includes(topic)) score += 0.8;
-      }
-      
-      const locations = ["california", "new york", "texas", "georgia", "virginia", "washington", "hawaii"];
-      for (const location of locations) {
-        if (text.includes(location)) score += 0.3;
-      }
-      
-      score += 1.0;
-      return Math.min(score, 10.0);
-    };
-
-    // EXISTING: Your classification functions (unchanged)
-    const classifyTopic = (title, description = "") => {
-      const text = `${title} ${description}`.toLowerCase();
-      
-      if (/health|medicare|insurance|hospital|medical/.test(text)) return "Healthcare";
-      if (/economy|job|employment|business|market|trade/.test(text)) return "Economy";
-      if (/election|voting|politics|government|policy/.test(text)) return "Politics";
-      if (/school|education|student|university|college/.test(text)) return "Education";
-      if (/immigration|visa|citizen|border/.test(text)) return "Immigration";
-      if (/culture|festival|community|celebration|tradition/.test(text)) return "Culture";
-      return "General";
-    };
-
-    const determinePriority = (relevanceScore, publishedHoursAgo) => {
-      if (relevanceScore >= 6.0 && publishedHoursAgo <= 24) return "high";
-      if (relevanceScore >= 4.0 && publishedHoursAgo <= 48) return "medium";
-      return "low";
-    };
-
-    // ENHANCED: Better metadata extraction
+    // Extract metadata
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
-      timeout: 15000
+      timeout: 10000
     });
 
     if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
     
     const html = await response.text();
     
-    // ENHANCED: Better title extraction
+    // Extract title
     let title = '';
     const titleMatches = [
       html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i),
@@ -266,7 +234,7 @@ export async function POST(request) {
       title = `Article from ${new URL(url).hostname}`;
     }
     
-    // ENHANCED: Better description extraction
+    // Extract description
     let description = '';
     const descMatches = [
       html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i),
@@ -281,7 +249,7 @@ export async function POST(request) {
       }
     }
 
-    // ENHANCED: Better author extraction
+    // Extract author
     let author = 'N/A';
     const authorMatches = [
       html.match(/<meta[^>]+name=["']author["'][^>]+content=["']([^"']+)["']/i),
@@ -297,17 +265,17 @@ export async function POST(request) {
       }
     }
 
-    // Fetch content using enhanced logic
+    // Fetch content
     const contentData = await fetchFullArticleContent(url, title);
     
-    // Use existing scoring
+    // Your existing scoring functions
     const relevanceScore = calculateRelevanceScore(title, description);
     const topic = classifyTopic(title, description);
     const priority = determinePriority(relevanceScore, 24);
     
     const hostname = new URL(url).hostname.replace('www.', '');
     
-    console.log('✅ ENHANCED AAVM extraction complete:', {
+    console.log('📊 Direct scraping result:', {
       titleLength: title.length,
       contentLength: contentData.content.length,
       quality: contentData.quality,
@@ -316,7 +284,7 @@ export async function POST(request) {
       priority
     });
 
-    return NextResponse.json({
+    return {
       title,
       author,
       content: contentData.content,
@@ -329,13 +297,194 @@ export async function POST(request) {
       contentQuality: contentData.quality,
       wordCount: contentData.wordCount,
       success: true
-    });
+    };
 
   } catch (error) {
-    console.error('❌ ENHANCED AAVM scraping error:', error);
-    return NextResponse.json({ 
-      error: error.message,
-      success: false 
-    }, { status: 500 });
+    console.error('Direct scraping failed:', error);
+    return {
+      title: `Article from ${new URL(url).hostname}`,
+      author: 'N/A',
+      content: '',
+      description: 'Direct scraping failed',
+      source: new URL(url).hostname.replace('www.', ''),
+      dateline: '',
+      relevanceScore: 5.0,
+      priority: 'medium',
+      topic: 'General',
+      contentQuality: 'failed',
+      wordCount: 0,
+      success: false
+    };
   }
 }
+
+// NEW: Event Registry fallback
+async function tryEventRegistryScraping(url) {
+  try {
+    // Check if Event Registry API key is available
+    const EVENT_REGISTRY_API_KEY = process.env.EVENT_REGISTRY_API_KEY;
+    
+    if (!EVENT_REGISTRY_API_KEY) {
+      console.log('⚠️ Event Registry API key not found, skipping fallback');
+      return { success: false };
+    }
+
+    console.log('🔄 Trying Event Registry for:', url);
+    
+    // Event Registry article extraction API
+    const eventRegistryResponse = await fetch('http://eventregistry.org/api/v1/article/getArticle', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        apiKey: EVENT_REGISTRY_API_KEY,
+        articleUri: url,
+        resultType: 'info',
+        includeArticleTitle: true,
+        includeArticleBody: true,
+        includeArticleBasicInfo: true,
+        includeArticleImage: true,
+        includeArticleLinks: true,
+        includeArticleSocialScore: true,
+        includeSourceTitle: true,
+        includeSourceDescription: true,
+        includeConceptLabel: true,
+        includeConceptImage: true,
+        includeConceptSynonyms: true,
+        includeLocationGeoLocation: true,
+        includeStoryTitle: true,
+        includeStoryBasicStats: true,
+        includeEventTitle: true,
+        includeEventBasicStats: true
+      }),
+    });
+
+    if (!eventRegistryResponse.ok) {
+      throw new Error(`Event Registry API error: ${eventRegistryResponse.status}`);
+    }
+
+    const eventData = await eventRegistryResponse.json();
+    
+    if (!eventData || !eventData.info || !eventData.info.body) {
+      throw new Error('No content returned from Event Registry');
+    }
+
+    const article = eventData.info;
+    
+    // Clean up the content
+    let content = article.body || '';
+    content = content.replace(/<[^>]+>/g, ' '); // Remove HTML tags
+    content = content.replace(/\s+/g, ' ').trim(); // Clean whitespace
+    
+    const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+    
+    let quality;
+    if (wordCount >= 400) quality = "excellent";
+    else if (wordCount >= 250) quality = "good";
+    else if (wordCount >= 150) quality = "medium";
+    else if (wordCount >= 75) quality = "poor";
+    else quality = "insufficient";
+
+    const title = article.title || `Article from ${new URL(url).hostname}`;
+    const description = article.body ? article.body.substring(0, 200) + '...' : 'No description available';
+    
+    // Use your existing scoring
+    const relevanceScore = calculateRelevanceScore(title, description);
+    const topic = classifyTopic(title, description);
+    const priority = determinePriority(relevanceScore, 24);
+    
+    const hostname = new URL(url).hostname.replace('www.', '');
+    
+    console.log('✅ Event Registry result:', {
+      titleLength: title.length,
+      contentLength: content.length,
+      quality: quality,
+      wordCount: wordCount,
+      relevanceScore,
+      priority
+    });
+
+    return {
+      title,
+      author: article.authors?.[0]?.name || 'N/A',
+      content,
+      description,
+      source: article.source?.title || hostname.charAt(0).toUpperCase() + hostname.slice(1),
+      dateline: '',
+      relevanceScore: Math.round(relevanceScore * 10) / 10,
+      priority,
+      topic,
+      contentQuality: quality,
+      wordCount,
+      success: true
+    };
+
+  } catch (error) {
+    console.error('Event Registry failed:', error);
+    return { success: false };
+  }
+}
+
+// Your existing helper functions
+const calculateRelevanceScore = (title, description = "") => {
+  const text = `${title} ${description}`.toLowerCase();
+  let score = 2.0;
+  
+  const aaKeywords = [
+    "asian american", "chinese american", "korean american", "vietnamese american",
+    "filipino american", "japanese american", "south asian", "southeast asian",
+    "immigration", "medicare", "healthcare", "education", "voting", "election",
+    "hate crime", "discrimination", "civil rights", "community center",
+    "small business", "chinatown", "koreatown", "language access", "translation",
+    "diaspora", "green card", "naturalization", "intergenerational",
+    "model minority", "bamboo ceiling", "affirmative action"
+  ];
+  
+  for (const keyword of aaKeywords) {
+    if (text.includes(keyword)) {
+      if (keyword.includes("asian american")) {
+        score += 4.0;
+      } else {
+        score += 2.0;
+      }
+    }
+  }
+  
+  const highRelevance = ["immigration", "healthcare", "education", "voting", "discrimination", "policy"];
+  const mediumRelevance = ["economy", "business", "community", "cultural", "federal", "government"];
+  
+  for (const topic of highRelevance) {
+    if (text.includes(topic)) score += 1.5;
+  }
+  
+  for (const topic of mediumRelevance) {
+    if (text.includes(topic)) score += 0.8;
+  }
+  
+  const locations = ["california", "new york", "texas", "georgia", "virginia", "washington", "hawaii"];
+  for (const location of locations) {
+    if (text.includes(location)) score += 0.3;
+  }
+  
+  score += 1.0;
+  return Math.min(score, 10.0);
+};
+
+const classifyTopic = (title, description = "") => {
+  const text = `${title} ${description}`.toLowerCase();
+  
+  if (/health|medicare|insurance|hospital|medical/.test(text)) return "Healthcare";
+  if (/economy|job|employment|business|market|trade/.test(text)) return "Economy";
+  if (/election|voting|politics|government|policy/.test(text)) return "Politics";
+  if (/school|education|student|university|college/.test(text)) return "Education";
+  if (/immigration|visa|citizen|border/.test(text)) return "Immigration";
+  if (/culture|festival|community|celebration|tradition/.test(text)) return "Culture";
+  return "General";
+};
+
+const determinePriority = (relevanceScore, publishedHoursAgo) => {
+  if (relevanceScore >= 6.0 && publishedHoursAgo <= 24) return "high";
+  if (relevanceScore >= 4.0 && publishedHoursAgo <= 48) return "medium";
+  return "low";
+};
