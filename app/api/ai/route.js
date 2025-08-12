@@ -177,7 +177,26 @@ function updateInFile(articleId, updates) {
   };
 }
 
-export async function GET() {
+// SINGLE GET FUNCTION - handles both API status and dashboard data
+export async function GET(request) {
+  const url = new URL(request.url);
+  const type = url.searchParams.get('type');
+  
+  // If requesting dashboard data
+  if (type === 'dashboard') {
+    try {
+      const dashboardData = await readDashboardData();
+      return NextResponse.json(dashboardData);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch dashboard data' },
+        { status: 500 }
+      );
+    }
+  }
+  
+  // Default: return API status
   const hasApiKey = !!process.env.OPENAI_API_KEY;
   const keyPreview = process.env.OPENAI_API_KEY ? 
     process.env.OPENAI_API_KEY.substring(0, 7) + '...' : 'Not found';
@@ -897,19 +916,5 @@ Provide only the Korean translation:`;
       type: error.name,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
-  }
-}
-
-// New endpoint for dashboard data - enhanced with Supabase
-export async function GET(request) {
-  try {
-    const dashboardData = await readDashboardData();
-    return NextResponse.json(dashboardData);
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch dashboard data' },
-      { status: 500 }
-    );
   }
 }
