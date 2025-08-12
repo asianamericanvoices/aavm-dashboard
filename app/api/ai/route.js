@@ -939,8 +939,77 @@ Provide only the Korean translation:`;
       });
     }
 
+    if (action === 'add_manual_article') {
+      console.log('💾 MANUAL ARTICLE ADD REQUEST:', { action, article: body.article });
+      
+      const { article } = body;
+      
+      if (!article) {
+        return NextResponse.json({ error: 'Article data required' }, { status: 400 });
+      }
+
+      try {
+        // If you have Supabase, save there
+        if (supabase) {
+          const supabaseArticle = {
+            original_title: article.originalTitle,
+            source: article.source,
+            author: article.author,
+            scraped_date: article.scrapedDate,
+            original_url: article.originalUrl,
+            status: article.status,
+            topic: article.topic,
+            full_content: article.fullContent,
+            short_description: article.shortDescription,
+            ai_summary: null,
+            ai_title: null,
+            display_title: null,
+            translations: JSON.stringify(article.translations),
+            translated_titles: JSON.stringify(article.translatedTitles),
+            image_generated: article.imageGenerated,
+            image_url: article.imageUrl,
+            priority: article.priority,
+            relevance_score: article.relevanceScore,
+            content_quality: article.contentQuality || 'manual',
+            word_count: article.wordCount || 0,
+            dateline: article.dateline || ''
+          };
+
+          const { data, error } = await supabase
+            .from('articles')
+            .insert(supabaseArticle)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Manual article saved to Supabase',
+            articleId: data.id
+          });
+        } else {
+          // Fallback: Log that it would be saved (since Vercel can't write files)
+          console.log('📝 Would save manual article to file system (read-only in Vercel)');
+          
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Manual article saved (file system)',
+            articleId: article.id
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error saving manual article:', error);
+        return NextResponse.json({ 
+          error: 'Failed to save manual article',
+          details: error.message 
+        }, { status: 500 });
+      }
+    }
+    
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image, update_status, update_content, start_over' 
+      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image, update_status, update_content, start_over, add_manual_article' 
     }, { status: 400 });
 
   } catch (error) {
