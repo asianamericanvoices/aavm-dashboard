@@ -10,6 +10,9 @@ export async function POST(request) {
     }
 
     console.log('🌐 Scraping with AAVM logic for:', url);
+   
+    console.log('🔍 SCRAPER DEBUG: Starting scrape process...');
+    console.log('🔍 SCRAPER DEBUG: Event Registry API Key available:', !!process.env.EVENT_REGISTRY_API_KEY);
 
     // STEP 1: Try direct scraping first
     const directResult = await tryDirectScraping(url);
@@ -46,6 +49,8 @@ async function tryDirectScraping(url) {
   try {
     const fetchFullArticleContent = async (url, title) => {
       try {
+        console.log('🔍 SCRAPER DEBUG: Starting fetch for:', url);
+        
         const response = await fetch(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -59,15 +64,23 @@ async function tryDirectScraping(url) {
           timeout: 15000,
           redirect: 'follow'
         });
-
+    
+        // ✅ DEBUG LOGGING ADDED HERE
+        console.log('🔍 SCRAPER DEBUG: Response status:', response.status);
+        console.log('🔍 SCRAPER DEBUG: Response ok:', response.ok);
+        
         if (!response.ok) {
+          console.log('🔍 SCRAPER DEBUG: Response not ok, status:', response.status);
           if (response.status === 403 || response.status === 401) {
+            console.log('🔍 SCRAPER DEBUG: Blocked by server');
             return { content: "", quality: "blocked", wordCount: 0 };
           }
           throw new Error(`HTTP ${response.status}`);
         }
         
         let text = await response.text();
+        console.log('🔍 SCRAPER DEBUG: Raw HTML length:', text.length);
+        console.log('🔍 SCRAPER DEBUG: HTML preview:', text.substring(0, 500));
         
         // Check for paywall indicators
         const paywallIndicators = [
