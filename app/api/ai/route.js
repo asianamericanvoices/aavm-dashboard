@@ -216,12 +216,12 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  console.log('POST request received at:', new Date().toISOString());
+  console.log('🚀 POST REQUEST RECEIVED:', new Date().toISOString());
   
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
   if (!OPENAI_API_KEY) {
-    console.error('No OpenAI API key found in environment variables');
+    console.error('❌ No OpenAI API key found in environment variables');
     return NextResponse.json(
       { error: 'OpenAI API key not configured' },
       { status: 500 }
@@ -230,9 +230,25 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    console.log('Request body received:', JSON.stringify(body, null, 2));
+    console.log('📦 REQUEST BODY RECEIVED:', JSON.stringify(body, null, 2));
+    console.log('🔍 ACTION DETECTED:', body.action);
     
     const { action, title, content, language, summary, source, articleId } = body;
+
+    // Add specific logging for manual add
+    if (action === 'add_manual_article') {
+      console.log('💾 MANUAL ADD ARTICLE DETECTED!');
+      console.log('📄 Article data received:', body.article ? 'YES' : 'NO');
+      if (body.article) {
+        console.log('📊 Article preview data:', {
+          id: body.article.id,
+          title: body.article.originalTitle?.substring(0, 50) + '...',
+          source: body.article.source,
+          hasContent: body.article.fullContent ? 'YES' : 'NO',
+          contentLength: body.article.fullContent?.length || 0
+        });
+      }
+    }
 
     // NEW: Handle start over action
     if (action === 'start_over') {
