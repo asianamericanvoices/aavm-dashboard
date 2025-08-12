@@ -629,6 +629,7 @@ export default function AAVMDashboard() {
   
       if (scrapingResponse.ok) {
         const scrapedData = await scrapingResponse.json();
+        console.log('🔍 DEBUG: Full API response from scraper:', JSON.stringify(scrapedData, null, 2));
         
         // ✅ ADD THIS DEBUG BLOCK - COPY/PASTE THIS ENTIRE SECTION
         console.log('🔍 DEBUG: Full scraped response:', scrapedData);
