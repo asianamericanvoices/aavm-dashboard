@@ -209,7 +209,8 @@ export default function AAVMDashboard() {
               editingTitle: false,
               editingSummary: false,
               editingChinese: false,
-              editingKorean: false
+              editingKorean: false,
+              editingAuthor: false
             }
           : a
       ));
@@ -371,6 +372,14 @@ export default function AAVMDashboard() {
     ));
   };
 
+  const handleEditAuthor = (articleId, newAuthor) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, author: newAuthor }
+        : a
+    ));
+  };
+    
   const handleApproveTitle = async (articleId) => {
     console.log('🟢 APPROVE TITLE CLICKED for article:', articleId);
     
@@ -1093,9 +1102,62 @@ export default function AAVMDashboard() {
                     )}
                   </div>
                   
-                  <p className="text-sm text-gray-600 mb-2">
-                    By {getAuthorDisplay(article.author, article.source)}
-                  </p>
+                  <div className="mb-2">
+                    {article.editingAuthor ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">By</span>
+                        <input
+                          id={`author-edit-${article.id}`}
+                          type="text"
+                          defaultValue={article.author || ''}
+                          onBlur={(e) => handleEditAuthor(article.id, e.target.value)}
+                          className="flex-1 p-1 border border-gray-300 rounded text-sm"
+                          placeholder="Enter author name"
+                        />
+                        <button 
+                          onClick={() => {
+                            const input = document.getElementById(`author-edit-${article.id}`);
+                            if (input) {
+                              handleEditAuthor(article.id, input.value);
+                              setArticles(prev => prev.map(a => 
+                                a.id === article.id ? {...a, editingAuthor: false} : a
+                              ));
+                            }
+                          }}
+                          className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                        >
+                          Save
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setArticles(prev => prev.map(a => 
+                              a.id === article.id ? {...a, editingAuthor: false} : a
+                            ));
+                          }}
+                          className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-gray-600">
+                          By {getAuthorDisplay(article.author, article.source)}
+                        </p>
+                        <button 
+                          onClick={() => {
+                            setArticles(prev => prev.map(a => 
+                              a.id === article.id ? {...a, editingAuthor: true} : a
+                            ));
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-xs"
+                          title="Edit author"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {article.imageUrl && (
                     <div className="mb-4">
