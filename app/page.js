@@ -567,12 +567,37 @@ export default function AAVMDashboard() {
     }
   };
 
-  const handleApproveForPublication = (articleId) => {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, status: 'published' }
-        : a
-    ));
+  const handleApproveForPublication = async (articleId) => {
+    try {
+      // Save published status to backend
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update_status',
+          articleId: articleId,
+          status: 'published'
+        }),
+      });
+  
+      if (response.ok) {
+        console.log('✅ Published status saved to backend');
+        
+        // Update UI after successful save
+        setArticles(prev => prev.map(a => 
+          a.id === articleId 
+            ? { ...a, status: 'published' }
+            : a
+        ));
+      } else {
+        throw new Error('Failed to save published status');
+      }
+    } catch (error) {
+      console.error('Error publishing article:', error);
+      alert('Failed to publish article. Please try again.');
+    }
   };
 
   const handleTranslateArticle = async (articleId, language) => {
@@ -1730,13 +1755,38 @@ export default function AAVMDashboard() {
                         ✓ Published
                       </span>
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           if (confirm('Are you sure you want to unpublish this article?')) {
-                            setArticles(prev => prev.map(a => 
-                              a.id === article.id 
-                                ? { ...a, status: 'ready_for_publication' }
-                                : a
-                            ));
+                            try {
+                              // Save unpublished status to backend
+                              const response = await fetch(window.location.origin + '/api/ai', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                  action: 'update_status',
+                                  articleId: article.id,
+                                  status: 'ready_for_publication'
+                                }),
+                              });
+                        
+                              if (response.ok) {
+                                console.log('✅ Unpublished status saved to backend');
+                                
+                                // Update UI after successful save
+                                setArticles(prev => prev.map(a => 
+                                  a.id === article.id 
+                                    ? { ...a, status: 'ready_for_publication' }
+                                    : a
+                                ));
+                              } else {
+                                throw new Error('Failed to save unpublished status');
+                              }
+                            } catch (error) {
+                              console.error('Error unpublishing article:', error);
+                              alert('Failed to unpublish article. Please try again.');
+                            }
                           }
                         }}
                         className="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-xs"
@@ -1778,6 +1828,21 @@ export default function AAVMDashboard() {
   const Analytics = () => {
     const topicCounts = getTopicCounts();
     const priorityPercentages = getPriorityPercentages();
+
+    // Calculate live analytics from current article state
+    const liveAnalytics = {
+      total_articles: articles.filter(a => a.status !== 'discarded').length,
+      articles_scraped_today: articles.filter(a => 
+        a.scrapedDate === new Date().toISOString().split('T')[0] && 
+        a.status !== 'discarded'
+      ).length,
+      pending_translation: articles.filter(a => 
+        a.status === 'ready_for_translation' || 
+        a.status === 'in_translation' || 
+        a.status === 'translation_review'
+      ).length,
+      published_articles: articles.filter(a => a.status === 'published').length
+    };
     
     return (
       <div className="space-y-6">
@@ -1788,7 +1853,7 @@ export default function AAVMDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Articles Scraped Today</p>
-                <p className="text-3xl font-bold text-gray-900">{analytics.articles_scraped_today || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{liveAnalytics.articles_scraped_today}</p>
               </div>
               <div className="bg-blue-100 p-2 rounded">
                 <BarChart3 className="w-6 h-6 text-blue-600" />
@@ -1800,7 +1865,7 @@ export default function AAVMDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Pending Translation</p>
-                <p className="text-3xl font-bold text-gray-900">{analytics.pending_translation || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{liveAnalytics.pending_translation}</p>
               </div>
               <div className="bg-yellow-100 p-2 rounded">
                 <Globe className="w-6 h-6 text-yellow-600" />
@@ -1812,7 +1877,7 @@ export default function AAVMDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Published Articles</p>
-                <p className="text-3xl font-bold text-gray-900">{analytics.published_articles || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{liveAnalytics.published_articles}</p>
               </div>
               <div className="bg-green-100 p-2 rounded">
                 <CheckCircle className="w-6 h-6 text-green-600" />
@@ -1824,7 +1889,7 @@ export default function AAVMDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Articles</p>
-                <p className="text-3xl font-bold text-gray-900">{analytics.total_articles || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{liveAnalytics.total_articles}</p>
               </div>
               <div className="bg-purple-100 p-2 rounded">
                 <Eye className="w-6 h-6 text-purple-600" />
