@@ -973,22 +973,23 @@ Provide only the Korean translation:`;
             author: article.author,
             scraped_date: article.scrapedDate,
             original_url: article.originalUrl,
-            status: article.status,
+            status: article.status || 'pending_synthesis',
             topic: article.topic,
             full_content: article.fullContent,
             short_description: article.shortDescription,
             ai_summary: null,
             ai_title: null,
             display_title: null,
-            translations: JSON.stringify(article.translations),
-            translated_titles: JSON.stringify(article.translatedTitles),
-            image_generated: article.imageGenerated,
-            image_url: article.imageUrl,
+            translations: article.translations || { chinese: null, korean: null },
+            translated_titles: article.translatedTitles || { chinese: null, korean: null },
+            image_generated: article.imageGenerated || false,
+            image_url: article.imageUrl || null,
             priority: article.priority,
             relevance_score: article.relevanceScore,
-            content_quality: article.contentQuality || 'manual',
-            word_count: article.wordCount || 0,
-            dateline: article.dateline || ''
+            in_dashboard: true, // ✅ ADD THIS FIELD
+            daily_snapshot: null, // ✅ ADD THIS FIELD  
+            content_hash: null, // ✅ ADD THIS FIELD
+            // created_at and updated_at will be auto-generated
           };
     
           const { data, error } = await supabase
@@ -997,52 +998,58 @@ Provide only the Korean translation:`;
             .select()
             .single();
     
-          if (error) throw error;
+          if (error) {
+            console.error('❌ Supabase insert error:', error);
+            throw error;
+          }
+    
+          console.log('✅ Manual article saved to Supabase:', data.id);
+    
+          // Convert back to dashboard format for frontend
+          const dashboardArticle = {
+            id: data.id,
+            originalTitle: data.original_title,
+            source: data.source,
+            author: data.author,
+            scrapedDate: data.scraped_date,
+            originalUrl: data.original_url,
+            status: data.status,
+            topic: data.topic,
+            fullContent: data.full_content,
+            shortDescription: data.short_description,
+            aiSummary: data.ai_summary,
+            aiTitle: data.ai_title,
+            displayTitle: data.display_title,
+            translations: data.translations || { chinese: null, korean: null },
+            translatedTitles: data.translated_titles || { chinese: null, korean: null },
+            imageGenerated: data.image_generated || false,
+            imageUrl: data.image_url,
+            priority: data.priority,
+            relevanceScore: data.relevance_score,
+            contentQuality: article.contentQuality || 'manual',
+            wordCount: article.wordCount || 0,
+            dateline: article.dateline || '',
+            isManualAdd: true
+          };
     
           return NextResponse.json({ 
             success: true, 
             message: 'Manual article saved to Supabase',
             articleId: data.id,
-            article: {
-              id: data.id,
-              originalTitle: data.original_title,
-              source: data.source,
-              author: data.author,
-              scrapedDate: data.scraped_date,
-              originalUrl: data.original_url,
-              status: data.status,
-              topic: data.topic,
-              fullContent: data.full_content,
-              shortDescription: data.short_description,
-              aiSummary: data.ai_summary,
-              aiTitle: data.ai_title,
-              displayTitle: data.display_title,
-              translations: data.translations || { chinese: null, korean: null },
-              translatedTitles: data.translated_titles || { chinese: null, korean: null },
-              imageGenerated: data.image_generated || false,
-              imageUrl: data.image_url,
-              priority: data.priority,
-              relevanceScore: data.relevance_score,
-              contentQuality: data.content_quality,
-              wordCount: data.word_count,
-              dateline: data.dateline
-            }
+            article: dashboardArticle
           });
         } else {
-          // ✅ FIXED: Actually save to the in-memory data structure for file system fallback
+          // Fallback to file system (existing code)
           console.log('📁 Saving manual article to file system...');
           
-          // Read current data
           const currentData = await readDashboardData();
           
-          // Create new article with proper ID
           const newArticle = {
             ...article,
-            id: Date.now(), // Generate a unique ID
+            id: Date.now(),
             isManualAdd: true
           };
           
-          // Add to articles array
           const updatedData = {
             ...currentData,
             articles: [newArticle, ...currentData.articles],
@@ -1053,14 +1060,11 @@ Provide only the Korean translation:`;
             last_updated: new Date().toISOString()
           };
           
-          // In a real deployment, you'd save this to a database
-          // For now, we'll return the article so the UI can update
           return NextResponse.json({ 
             success: true, 
             message: 'Manual article saved (file system)',
             articleId: newArticle.id,
             article: newArticle,
-            // ✅ Return the full updated data so the frontend can update its state
             updatedData: updatedData
           });
         }
