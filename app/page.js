@@ -649,8 +649,8 @@ export default function AAVMDashboard() {
           translatedTitles: { chinese: null, korean: null },
           imageGenerated: false,
           imageUrl: null,
-          priority: 'medium',
-          relevanceScore: 5.0,
+          priority: scrapedData.priority || 'medium',
+          relevanceScore: scrapedData.relevanceScore || 5.0,
           dateline: scrapedData.dateline || '',
           isManualAdd: true,
           publishedDate: scrapedData.publishedDate || new Date().toISOString().split('T')[0]
