@@ -1,4 +1,4 @@
-// app/api/scrape-article/route.js - ENHANCED VERSION with 403 bypass
+// app/api/scrape-article/route.js - Your original code with just better headers
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -9,34 +9,34 @@ export async function POST(request) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
-    console.log('🌐 Enhanced scraping for:', url);
-    
-    // STEP 1: Try multiple scraping strategies
-    const strategies = [
-      () => tryAdvancedScraping(url),
-      () => tryBasicScraping(url),
-      () => tryEventRegistryScraping(url)
-    ];
+    console.log('🌐 Scraping with AAVM logic for:', url);
+   
+    console.log('🔍 SCRAPER DEBUG: Starting scrape process...');
+    console.log('🔍 SCRAPER DEBUG: Event Registry API Key available:', !!process.env.EVENT_REGISTRY_API_KEY);
 
-    for (const strategy of strategies) {
-      try {
-        const result = await strategy();
-        if (result.success && result.wordCount > 50) {
-          console.log('✅ Strategy succeeded with', result.wordCount, 'words');
-          return NextResponse.json(result);
-        }
-      } catch (error) {
-        console.log('Strategy failed, trying next...', error.message);
-        continue;
+    // STEP 1: Try direct scraping first
+    const directResult = await tryDirectScraping(url);
+    
+    // STEP 2: If direct scraping fails or gets poor content, try Event Registry
+    if (directResult.contentQuality === 'insufficient' || 
+        directResult.contentQuality === 'failed' || 
+        directResult.contentQuality === 'blocked' ||
+        directResult.wordCount < 100) {
+      
+      console.log('🔄 Direct scraping failed/insufficient, trying Event Registry...');
+      const eventRegistryResult = await tryEventRegistryScraping(url);
+      
+      if (eventRegistryResult.success && eventRegistryResult.wordCount > directResult.wordCount) {
+        console.log('✅ Event Registry provided better content');
+        return NextResponse.json(eventRegistryResult);
       }
     }
-
-    // Return best attempt even if poor quality
-    const fallbackResult = await tryBasicScraping(url);
-    return NextResponse.json(fallbackResult);
+    
+    // Return direct result if it was good enough or Event Registry failed
+    return NextResponse.json(directResult);
 
   } catch (error) {
-    console.error('❌ All scraping strategies failed:', error);
+    console.error('❌ Scraping error:', error);
     return NextResponse.json({ 
       error: error.message,
       success: false 
@@ -44,131 +44,309 @@ export async function POST(request) {
   }
 }
 
-// STRATEGY 1: Advanced scraping with sophisticated anti-bot measures
-async function tryAdvancedScraping(url) {
+// Your original direct scraping logic with improved headers
+async function tryDirectScraping(url) {
   try {
-    console.log('🚀 Trying advanced scraping strategy...');
+    const fetchFullArticleContent = async (url, title) => {
+      try {
+        console.log('🔍 SCRAPER DEBUG: Starting fetch for:', url);
+        
+        const response = await fetch(url, {
+          headers: {
+            // ✅ ONLY CHANGE: Better headers to avoid 403
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Referer': 'https://www.google.com/',
+          },
+          timeout: 15000,
+          redirect: 'follow'
+        });
     
-    // Generate random realistic headers
-    const userAgents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0'
-    ];
-
-    const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-    const isChrome = randomUserAgent.includes('Chrome');
-    const isFirefox = randomUserAgent.includes('Firefox');
-
-    // Build comprehensive headers that match the user agent
-    const headers = {
-      'User-Agent': randomUserAgent,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Cache-Control': 'max-age=0'
+        // ✅ Your original debug logging
+        console.log('🔍 SCRAPER DEBUG: Response status:', response.status);
+        console.log('🔍 SCRAPER DEBUG: Response ok:', response.ok);
+        
+        if (!response.ok) {
+          console.log('🔍 SCRAPER DEBUG: Response not ok, status:', response.status);
+          if (response.status === 403 || response.status === 401) {
+            console.log('🔍 SCRAPER DEBUG: Blocked by server');
+            return { content: "", quality: "blocked", wordCount: 0 };
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        let text = await response.text();
+        console.log('🔍 SCRAPER DEBUG: Raw HTML length:', text.length);
+        console.log('🔍 SCRAPER DEBUG: HTML preview:', text.substring(0, 500));
+        
+        // Check for paywall indicators
+        const paywallIndicators = [
+          'subscribe to continue reading',
+          'this content is for subscribers',
+          'paywall',
+          'premium content',
+          'unlock this article',
+          'become a member',
+          'sign up to read'
+        ];
+        
+        const hasPaywall = paywallIndicators.some(indicator => 
+          text.toLowerCase().includes(indicator)
+        );
+        
+        if (hasPaywall) {
+          console.log('🚫 Paywall detected');
+          return { content: "", quality: "blocked", wordCount: 0 };
+        }
+        
+        // Your original HTML cleaning logic
+        text = text.replace(/<script[^>]*>.*?<\/script>/gis, '');
+        text = text.replace(/<style[^>]*>.*?<\/style>/gis, '');
+        text = text.replace(/<nav[^>]*>.*?<\/nav>/gis, '');
+        text = text.replace(/<header[^>]*>.*?<\/header>/gis, '');
+        text = text.replace(/<footer[^>]*>.*?<\/footer>/gis, '');
+        text = text.replace(/<aside[^>]*>.*?<\/aside>/gis, '');
+        text = text.replace(/<noscript[^>]*>.*?<\/noscript>/gis, '');
+        text = text.replace(/<form[^>]*>.*?<\/form>/gis, '');
+        text = text.replace(/<!--.*?-->/gis, '');
+        
+        // Try to extract article content more intelligently
+        const articleSelectors = [
+          'article',
+          '[role="article"]',
+          '.article-content',
+          '.post-content',
+          '.entry-content',
+          '.content',
+          'main',
+          '.story-body',
+          '.article-body'
+        ];
+        
+        let articleContent = '';
+        for (const selector of articleSelectors) {
+          const regex = new RegExp(`<${selector}[^>]*>(.*?)<\/${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}>`, 'gis');
+          const match = text.match(regex);
+          if (match && match[1] && match[1].length > articleContent.length) {
+            articleContent = match[1];
+          }
+        }
+        
+        if (articleContent.length > 500) {
+          text = articleContent;
+        }
+        
+        // Remove all HTML tags and clean up
+        text = text.replace(/<[^>]+>/g, ' ');
+        text = text.replace(/&nbsp;/g, ' ')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .replace(/&quot;/g, '"')
+                  .replace(/&#39;/g, "'")
+                  .replace(/\s+/g, ' ')
+                  .trim();
+        
+        // Your original sentence filtering logic
+        const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
+        const titleWords = new Set(title.toLowerCase().split(/\s+/).filter(word => word.length > 2));
+        const relevantSentences = [];
+        
+        for (const sentence of sentences) {
+          if (sentence.length > 50) {
+            let relevanceScore = 0;
+            
+            const titleOverlap = [...titleWords].filter(word => 
+              sentence.toLowerCase().includes(word)
+            ).length;
+            relevanceScore += titleOverlap * 2;
+            
+            if (sentence.length > 100) relevanceScore += 1;
+            if (sentence.length > 200) relevanceScore += 1;
+            
+            if (/\b(said|according|reported|stated|announced|revealed|confirmed|disclosed)\b/i.test(sentence)) {
+              relevanceScore += 2;
+            }
+            
+            if (/"[^"]*"/g.test(sentence)) {
+              relevanceScore += 1;
+            }
+            
+            if (/\b(today|yesterday|this week|last month|on \w+day)\b/i.test(sentence)) {
+              relevanceScore += 1;
+            }
+            
+            const isUIText = /\b(click here|read more|subscribe|newsletter|follow us|share this|comments|advertisement)\b/i.test(sentence);
+            
+            if (relevanceScore >= 2 && !isUIText) {
+              relevantSentences.push({ sentence, score: relevanceScore });
+            }
+          }
+        }
+        
+        relevantSentences.sort((a, b) => b.score - a.score);
+        const bestSentences = relevantSentences.slice(0, 40).map(item => item.sentence);
+        
+        const fullContent = bestSentences.join('. ') + (bestSentences.length > 0 ? '.' : '');
+        const wordCount = fullContent.split(/\s+/).filter(word => word.length > 0).length;
+        
+        let quality;
+        if (wordCount >= 400) quality = "excellent";
+        else if (wordCount >= 250) quality = "good";
+        else if (wordCount >= 150) quality = "medium";
+        else if (wordCount >= 75) quality = "poor";
+        else quality = "insufficient";
+        
+        return { content: fullContent, quality, wordCount };
+        
+      } catch (error) {
+        console.log('Direct content fetch failed:', error.message);
+        
+        if (error.message.includes('timeout')) {
+          return { content: "", quality: "timeout", wordCount: 0 };
+        }
+        if (error.message.includes('403') || error.message.includes('401')) {
+          return { content: "", quality: "blocked", wordCount: 0 };
+        }
+        
+        return { content: "", quality: "failed", wordCount: 0 };
+      }
     };
 
-    // Add browser-specific headers
-    if (isChrome) {
-      headers['sec-ch-ua'] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"';
-      headers['sec-ch-ua-mobile'] = '?0';
-      headers['sec-ch-ua-platform'] = '"Windows"';
-    }
-
-    // Add referer to look more natural
-    try {
-      const urlObj = new URL(url);
-      headers['Referer'] = `https://www.google.com/`;
-    } catch (e) {
-      // If URL parsing fails, skip referer
-    }
-
-    console.log('📡 Making request with advanced headers...');
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: headers,
-      redirect: 'follow',
-      // Add a realistic timeout
-      signal: AbortSignal.timeout(15000)
-    });
-
-    console.log('📊 Response status:', response.status);
-
-    if (!response.ok) {
-      if (response.status === 403) {
-        throw new Error('403_BLOCKED');
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const html = await response.text();
-    console.log('📄 HTML received, length:', html.length);
-
-    return await processHTML(html, url);
-
-  } catch (error) {
-    console.error('Advanced scraping failed:', error.message);
-    throw error;
-  }
-}
-
-// STRATEGY 2: Basic scraping (your existing logic, slightly improved)
-async function tryBasicScraping(url) {
-  try {
-    console.log('🔧 Trying basic scraping strategy...');
-
+    // Extract metadata
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
-      timeout: 10000,
-      redirect: 'follow'
+      timeout: 10000
     });
 
-    if (!response.ok) {
-      if (response.status === 403 || response.status === 401) {
-        throw new Error('BLOCKED');
+    if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+    
+    const html = await response.text();
+    
+    // Extract title
+    let title = '';
+    const titleMatches = [
+      html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    ];
+    
+    for (const match of titleMatches) {
+      if (match && match[1] && match[1].trim()) {
+        title = match[1].replace(/&[^;]+;/g, '').trim();
+        break;
       }
-      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    if (!title) {
+      title = `Article from ${new URL(url).hostname}`;
+    }
+    
+    // Extract description
+    let description = '';
+    const descMatches = [
+      html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']+)["']/i)
+    ];
+    
+    for (const match of descMatches) {
+      if (match && match[1] && match[1].trim()) {
+        description = match[1].replace(/&[^;]+;/g, '').trim();
+        break;
+      }
     }
 
-    const html = await response.text();
-    return await processHTML(html, url);
+    // Extract author
+    let author = 'N/A';
+    const authorMatches = [
+      html.match(/<meta[^>]+name=["']author["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/<meta[^>]+property=["']article:author["'][^>]+content=["']([^"']+)["']/i),
+      html.match(/[Bb]y\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/),
+      html.match(/<span[^>]*class="[^"]*author[^"]*"[^>]*>([^<]+)<\/span>/i)
+    ];
+    
+    for (const match of authorMatches) {
+      if (match && match[1] && match[1].trim()) {
+        author = match[1].trim();
+        break;
+      }
+    }
+
+    // Fetch content
+    const contentData = await fetchFullArticleContent(url, title);
+    
+    // Your existing scoring functions
+    const relevanceScore = calculateRelevanceScore(title, description);
+    const topic = classifyTopic(title, description);
+    const priority = determinePriority(relevanceScore, 24);
+    
+    const hostname = new URL(url).hostname.replace('www.', '');
+    
+    console.log('📊 Direct scraping result:', {
+      titleLength: title.length,
+      contentLength: contentData.content.length,
+      quality: contentData.quality,
+      wordCount: contentData.wordCount,
+      relevanceScore,
+      priority
+    });
+
+    return {
+      title,
+      author,
+      content: contentData.content,
+      description: description || 'No description available',
+      source: hostname.charAt(0).toUpperCase() + hostname.slice(1),
+      dateline: '',
+      relevanceScore: Math.round(relevanceScore * 10) / 10,
+      priority,
+      topic,
+      contentQuality: contentData.quality,
+      wordCount: contentData.wordCount,
+      success: true
+    };
 
   } catch (error) {
-    console.error('Basic scraping failed:', error.message);
-    throw error;
+    console.error('Direct scraping failed:', error);
+    return {
+      title: `Article from ${new URL(url).hostname}`,
+      author: 'N/A',
+      content: '',
+      description: 'Direct scraping failed',
+      source: new URL(url).hostname.replace('www.', ''),
+      dateline: '',
+      relevanceScore: 5.0,
+      priority: 'medium',
+      topic: 'General',
+      contentQuality: 'failed',
+      wordCount: 0,
+      success: false
+    };
   }
 }
 
-// STRATEGY 3: Event Registry fallback (enhanced from your existing code)
+// Your original Event Registry fallback
 async function tryEventRegistryScraping(url) {
   try {
+    // Check if Event Registry API key is available
     const EVENT_REGISTRY_API_KEY = process.env.EVENT_REGISTRY_API_KEY;
     
     if (!EVENT_REGISTRY_API_KEY) {
-      throw new Error('No Event Registry API key');
+      console.log('⚠️ Event Registry API key not found, skipping fallback');
+      return { success: false };
     }
 
-    console.log('🔄 Trying Event Registry fallback...');
+    console.log('🔄 Trying Event Registry for:', url);
     
+    // Event Registry article extraction API
     const eventRegistryResponse = await fetch('http://eventregistry.org/api/v1/article/getArticle', {
       method: 'POST',
       headers: {
@@ -181,37 +359,66 @@ async function tryEventRegistryScraping(url) {
         includeArticleTitle: true,
         includeArticleBody: true,
         includeArticleBasicInfo: true,
+        includeArticleImage: true,
+        includeArticleLinks: true,
+        includeArticleSocialScore: true,
+        includeSourceTitle: true,
+        includeSourceDescription: true,
+        includeConceptLabel: true,
+        includeConceptImage: true,
+        includeConceptSynonyms: true,
+        includeLocationGeoLocation: true,
+        includeStoryTitle: true,
+        includeStoryBasicStats: true,
+        includeEventTitle: true,
+        includeEventBasicStats: true
       }),
     });
 
     if (!eventRegistryResponse.ok) {
-      throw new Error(`Event Registry error: ${eventRegistryResponse.status}`);
+      throw new Error(`Event Registry API error: ${eventRegistryResponse.status}`);
     }
 
     const eventData = await eventRegistryResponse.json();
     
-    if (!eventData?.info?.body) {
-      throw new Error('No content from Event Registry');
+    if (!eventData || !eventData.info || !eventData.info.body) {
+      throw new Error('No content returned from Event Registry');
     }
 
     const article = eventData.info;
-    const content = article.body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    // Clean up the content
+    let content = article.body || '';
+    content = content.replace(/<[^>]+>/g, ' '); // Remove HTML tags
+    content = content.replace(/\s+/g, ' ').trim(); // Clean whitespace
+    
     const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
     
-    let quality = 'insufficient';
+    let quality;
     if (wordCount >= 400) quality = "excellent";
-    else if (wordCount >= 250) quality = "good";  
+    else if (wordCount >= 250) quality = "good";
     else if (wordCount >= 150) quality = "medium";
     else if (wordCount >= 75) quality = "poor";
+    else quality = "insufficient";
 
     const title = article.title || `Article from ${new URL(url).hostname}`;
-    const description = content.length > 200 ? content.substring(0, 200) + '...' : content;
+    const description = article.body ? article.body.substring(0, 200) + '...' : 'No description available';
     
+    // Use your existing scoring
     const relevanceScore = calculateRelevanceScore(title, description);
     const topic = classifyTopic(title, description);
     const priority = determinePriority(relevanceScore, 24);
     
     const hostname = new URL(url).hostname.replace('www.', '');
+    
+    console.log('✅ Event Registry result:', {
+      titleLength: title.length,
+      contentLength: content.length,
+      quality: quality,
+      wordCount: wordCount,
+      relevanceScore,
+      priority
+    });
 
     return {
       title,
@@ -229,240 +436,12 @@ async function tryEventRegistryScraping(url) {
     };
 
   } catch (error) {
-    console.error('Event Registry failed:', error.message);
-    throw error;
+    console.error('Event Registry failed:', error);
+    return { success: false };
   }
 }
 
-// Enhanced HTML processing function
-async function processHTML(html, url) {
-  try {
-    // Check for paywall/blocking indicators
-    const paywallIndicators = [
-      'subscribe to continue reading',
-      'this content is for subscribers',
-      'paywall', 'premium content',
-      'unlock this article',
-      'become a member',
-      'sign up to read',
-      'access denied',
-      'blocked'
-    ];
-    
-    const htmlLower = html.toLowerCase();
-    const hasPaywall = paywallIndicators.some(indicator => htmlLower.includes(indicator));
-    
-    if (hasPaywall) {
-      console.log('🚫 Paywall detected');
-      throw new Error('PAYWALL_DETECTED');
-    }
-
-    // Extract metadata
-    const title = extractTitle(html, url);
-    const description = extractDescription(html);
-    const author = extractAuthor(html);
-    
-    // Enhanced content extraction
-    const content = extractMainContent(html, title);
-    const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
-    
-    let quality = 'insufficient';
-    if (wordCount >= 400) quality = "excellent";
-    else if (wordCount >= 250) quality = "good";
-    else if (wordCount >= 150) quality = "medium";
-    else if (wordCount >= 75) quality = "poor";
-
-    const relevanceScore = calculateRelevanceScore(title, description);
-    const topic = classifyTopic(title, description);
-    const priority = determinePriority(relevanceScore, 24);
-    const hostname = new URL(url).hostname.replace('www.', '');
-
-    console.log('✅ Content extracted:', {
-      titleLength: title.length,
-      contentLength: content.length,
-      wordCount,
-      quality
-    });
-
-    return {
-      title,
-      author,
-      content,
-      description: description || 'No description available',
-      source: hostname.charAt(0).toUpperCase() + hostname.slice(1),
-      dateline: '',
-      relevanceScore: Math.round(relevanceScore * 10) / 10,
-      priority,
-      topic,
-      contentQuality: quality,
-      wordCount,
-      success: true
-    };
-
-  } catch (error) {
-    console.error('HTML processing failed:', error.message);
-    throw error;
-  }
-}
-
-// Improved content extraction
-function extractMainContent(html, title) {
-  // Remove unwanted elements
-  let cleanHtml = html.replace(/<script[^>]*>.*?<\/script>/gis, '');
-  cleanHtml = cleanHtml.replace(/<style[^>]*>.*?<\/style>/gis, '');
-  cleanHtml = cleanHtml.replace(/<nav[^>]*>.*?<\/nav>/gis, '');
-  cleanHtml = cleanHtml.replace(/<header[^>]*>.*?<\/header>/gis, '');
-  cleanHtml = cleanHtml.replace(/<footer[^>]*>.*?<\/footer>/gis, '');
-  cleanHtml = cleanHtml.replace(/<aside[^>]*>.*?<\/aside>/gis, '');
-  cleanHtml = cleanHtml.replace(/<noscript[^>]*>.*?<\/noscript>/gis, '');
-  cleanHtml = cleanHtml.replace(/<form[^>]*>.*?<\/form>/gis, '');
-  cleanHtml = cleanHtml.replace(/<!--.*?-->/gis, '');
-
-  // Try to find main article content with better selectors
-  const articleSelectors = [
-    'article', '[role="article"]', '.article-content', '.post-content',
-    '.entry-content', '.content', 'main', '.story-body', '.article-body',
-    '.post-body', '.entry', '.single-post', '.blog-post', '[id*="content"]',
-    '[class*="story"]', '[class*="article"]', '[class*="post-content"]'
-  ];
-  
-  let bestContent = '';
-  for (const selector of articleSelectors) {
-    const regex = new RegExp(`<[^>]*(?:class|id)=[^>]*${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^>]*>(.*?)<\/[^>]*>`, 'gis');
-    const match = cleanHtml.match(regex);
-    if (match && match[1] && match[1].length > bestContent.length) {
-      bestContent = match[1];
-    }
-  }
-  
-  if (bestContent.length > 500) {
-    cleanHtml = bestContent;
-  }
-
-  // Clean up text
-  let text = cleanHtml.replace(/<[^>]+>/g, ' ');
-  text = text.replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/\s+/g, ' ')
-            .trim();
-
-  // Smart sentence filtering
-  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 30);
-  const titleWords = new Set(title.toLowerCase().split(/\s+/).filter(word => word.length > 2));
-  const relevantSentences = [];
-  
-  for (const sentence of sentences) {
-    if (sentence.length > 50) {
-      let relevanceScore = 0;
-      
-      // Title word overlap
-      const titleOverlap = [...titleWords].filter(word => 
-        sentence.toLowerCase().includes(word)
-      ).length;
-      relevanceScore += titleOverlap * 2;
-      
-      // Length bonuses
-      if (sentence.length > 100) relevanceScore += 1;
-      if (sentence.length > 200) relevanceScore += 1;
-      
-      // Quote indicators
-      if (/\b(said|according|reported|stated|announced|revealed|confirmed|disclosed)\b/i.test(sentence)) {
-        relevanceScore += 2;
-      }
-      
-      // Direct quotes
-      if (/"[^"]*"/g.test(sentence)) {
-        relevanceScore += 1;
-      }
-      
-      // Time indicators
-      if (/\b(today|yesterday|this week|last month|on \w+day)\b/i.test(sentence)) {
-        relevanceScore += 1;
-      }
-      
-      // Filter out UI text
-      const isUIText = /\b(click here|read more|subscribe|newsletter|follow us|share this|comments|advertisement|cookie|privacy policy)\b/i.test(sentence);
-      
-      if (relevanceScore >= 2 && !isUIText && sentence.length < 1000) {
-        relevantSentences.push({ sentence, score: relevanceScore });
-      }
-    }
-  }
-  
-  // Sort by relevance and take the best
-  relevantSentences.sort((a, b) => b.score - a.score);
-  const bestSentences = relevantSentences.slice(0, 50).map(item => item.sentence);
-  
-  return bestSentences.join('. ') + (bestSentences.length > 0 ? '.' : '');
-}
-
-// Improved title extraction
-function extractTitle(html, url) {
-  const titleMatches = [
-    html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i),
-    html.match(/<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i),
-    html.match(/<title[^>]*>([^<]+)<\/title>/i),
-    html.match(/<h1[^>]*>([^<]+)<\/h1>/i)
-  ];
-  
-  for (const match of titleMatches) {
-    if (match && match[1] && match[1].trim()) {
-      let title = match[1].replace(/&[^;]+;/g, '').trim();
-      // Remove common suffixes
-      title = title.replace(/\s*[-|]\s*(.*?)$/i, '');
-      if (title.length > 10) return title;
-    }
-  }
-  
-  return `Article from ${new URL(url).hostname}`;
-}
-
-// Improved description extraction  
-function extractDescription(html) {
-  const descMatches = [
-    html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i),
-    html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i),
-    html.match(/<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']+)["']/i)
-  ];
-  
-  for (const match of descMatches) {
-    if (match && match[1] && match[1].trim()) {
-      return match[1].replace(/&[^;]+;/g, '').trim();
-    }
-  }
-  
-  return '';
-}
-
-// Improved author extraction
-function extractAuthor(html) {
-  const authorMatches = [
-    html.match(/<meta[^>]+name=["']author["'][^>]+content=["']([^"']+)["']/i),
-    html.match(/<meta[^>]+property=["']article:author["'][^>]+content=["']([^"']+)["']/i),
-    html.match(/[Bb]y\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/),
-    html.match(/<span[^>]*class="[^"]*author[^"]*"[^>]*>([^<]+)<\/span>/i),
-    html.match(/<div[^>]*class="[^"]*author[^"]*"[^>]*>([^<]+)<\/div>/i)
-  ];
-  
-  for (const match of authorMatches) {
-    if (match && match[1] && match[1].trim()) {
-      let author = match[1].trim();
-      // Clean up common prefixes/suffixes
-      author = author.replace(/^(by\s+|author:\s*)/i, '');
-      if (author.length > 2 && author.length < 100) {
-        return author;
-      }
-    }
-  }
-  
-  return 'N/A';
-}
-
-// Your existing helper functions (keep these the same)
+// Your original helper functions
 const calculateRelevanceScore = (title, description = "") => {
   const text = `${title} ${description}`.toLowerCase();
   let score = 2.0;
