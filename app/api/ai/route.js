@@ -179,155 +179,79 @@ function updateInFile(articleId, updates) {
   };
 }
 
-// Two-step prompt generation: OpenAI analyzes, Stability AI generates
-async function generateNewsImagePrompt(title, content) {
-  // Remove real person names to avoid content policy issues
-  let safeTitle = title
-    .replace(/Trump/gi, 'government official')
-    .replace(/Biden/gi, 'administration official')
-    .replace(/Harris/gi, 'political figure')
-    .replace(/[A-Z][a-z]+ [A-Z][a-z]+/g, 'official');
-
-  const text = `${safeTitle} ${content}`.toLowerCase();
+// Pure code logic - NO OpenAI needed for prompt generation!
+function generateNewsImagePrompt(title, content) {
+  console.log('🎨 Generating prompt from title:', title.substring(0, 50) + '...');
   
-  console.log('🎨 Step 1: Analyzing story with OpenAI for:', safeTitle.substring(0, 50) + '...');
+  const titleLower = title.toLowerCase();
+  let visualDescription = "";
   
-  try {
-    // Step 1: Let OpenAI analyze the story and suggest visual concepts
-    const visualDescription = await generateVisualDescriptionWithAI(safeTitle, content);
-    
-    // Step 2: Create final Stability AI prompt with stronger "no text" instructions
-    const prompt = `Professional news photography: ${visualDescription}, photorealistic documentary style, professional lighting, no people visible, completely text-free, no words anywhere, no signage, no screens, no documents, no newspapers, no readable text of any kind, high quality news media image, clean architectural photography.`;
-    
-    console.log('🎨 Step 2: Final visual description:', visualDescription);
-    console.log('🎨 Final prompt length:', prompt.length, 'characters');
-    
-    return prompt;
-    
-  } catch (error) {
-    console.error('❌ OpenAI visual analysis failed, using fallback:', error);
-    // Fallback to simple description if OpenAI fails
-    const fallbackPrompt = `Professional news photography: modern institutional building related to the story, photorealistic documentary style, professional lighting, no people, no text, no words, no signage.`;
-    return fallbackPrompt;
+  // Crisis/Emergency/Crackdown keywords - URGENT/ACTIVE scenes
+  if (titleLower.includes('crackdown') || titleLower.includes('raid') || titleLower.includes('deployment') || 
+      titleLower.includes('emergency') || titleLower.includes('crisis') || titleLower.includes('outbreak')) {
+    visualDescription = "Federal law enforcement vehicles staged for emergency operation, crisis response command center with official vehicles lined up, active government enforcement staging area";
   }
-}
-
-async function generateVisualDescriptionWithAI(title, content) {
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-  
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured');
+  // Jail/Prison/Arrest keywords - LAW ENFORCEMENT scenes
+  else if (titleLower.includes('jail') || titleLower.includes('arrest') || titleLower.includes('prison') || 
+           titleLower.includes('detained') || titleLower.includes('custody') || titleLower.includes('bars')) {
+    visualDescription = "Law enforcement facility exterior during active operation, police vehicles at detention center, correctional facility with official security presence";
   }
-
-  const analysisPrompt = `You are a visual director for a news media company. Your job is to create compelling visual concepts for news images based on article content.
-
-Read this news article and create a visual description for a news photograph that would be engaging, relevant, and appropriate for the story:
-
-TITLE: ${title}
-CONTENT: ${content}
-
-Create a visual description that:
-- Captures the essence and mood of the story
-- Is visually interesting and engaging (not boring generic buildings)
-- Shows relevant environments, architecture, or settings
-- Conveys the right emotional tone (urgent, serious, professional, etc.)
-- Avoids showing specific people or recognizable locations
-- Would work well as a news image accompaniment
-
-Examples of good visual descriptions:
-- "Government treasury building with imposing columns and formal architecture"
-- "Financial district skyscrapers with modern glass facades reflecting economic power"
-- "Congressional building exterior with neoclassical architecture and American flag"
-- "Federal courthouse steps with marble columns under dramatic sky"
-- "Wall Street financial center with towering office buildings"
-- "IRS headquarters building with institutional government architecture"
-
-Respond with ONLY a concise visual description (1-2 sentences max) that would make an engaging news photograph:`;
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a visual director who creates compelling, relevant visual concepts for news photography. Focus on environments and settings that tell the story visually. Keep descriptions concise and engaging.'
-        },
-        {
-          role: 'user',
-          content: analysisPrompt
-        }
-      ],
-      max_tokens: 100,
-      temperature: 0.7,
-      top_p: 1,
-      frequency_penalty: 0.2,
-      presence_penalty: 0.2
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+  // Investigation/Probe keywords - INVESTIGATION scenes
+  else if (titleLower.includes('investigation') || titleLower.includes('probe') || titleLower.includes('charges') ||
+           titleLower.includes('evidence') || titleLower.includes('fbi') || titleLower.includes('inquiry')) {
+    visualDescription = "Federal courthouse during active investigation, law enforcement evidence staging area, government investigation command center with official vehicles";
   }
-
-  const data = await response.json();
-  const description = data.choices?.[0]?.message?.content?.trim();
-  
-  if (!description) {
-    throw new Error('No visual description returned from OpenAI');
+  // Court/Legal keywords - JUSTICE scenes
+  else if (titleLower.includes('court') || titleLower.includes('trial') || titleLower.includes('judge') || 
+           titleLower.includes('lawsuit') || titleLower.includes('ruling') || titleLower.includes('verdict')) {
+    visualDescription = "Federal courthouse exterior with official vehicles during proceedings, justice department building with legal activity, court complex during active hearings";
   }
-
-  return description;
-}
-
-// Optimized Stability AI function for your existing code
-async function generateStabilityImage(prompt, apiKey) {
-  console.log('🎨 Calling Stability AI with prompt:', prompt.substring(0, 100) + '...');
-  
-  // Enhanced prompt for news photography with stronger no-text instructions
-  const stabilityPrompt = `${prompt}, architectural photography, no text visible anywhere, no signage, no screens with content, no readable elements, professional composition, documentary style, clean and minimal`;
-
-  const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      text_prompts: [{ text: stabilityPrompt, weight: 1 }],
-      cfg_scale: 7,          // Good balance of creativity vs prompt adherence
-      height: 1024,
-      width: 1024,
-      samples: 1,
-      steps: 30,             // Good quality vs speed balance
-      seed: 0,               // Random seed for variety
-      style_preset: "photographic", // Perfect for news images
-    }),
-  });
-
-  console.log('🎨 Stability AI response status:', response.status);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('❌ Stability AI error:', errorText);
-    throw new Error(`Stability AI error: ${response.status} - ${errorText}`);
+  // Healthcare/Medical keywords - MEDICAL EMERGENCY scenes
+  else if (titleLower.includes('hospital') || titleLower.includes('health') || titleLower.includes('medical') || 
+           titleLower.includes('virus') || titleLower.includes('outbreak') || titleLower.includes('cdc')) {
+    visualDescription = "Emergency medical response staging area, hospital emergency department with ambulances lined up, medical crisis response center with emergency vehicles";
   }
-
-  const data = await response.json();
-  
-  if (!data.artifacts || !data.artifacts[0]) {
-    throw new Error('No image returned from Stability AI');
+  // Economic/Financial keywords - FINANCIAL ACTION scenes
+  else if (titleLower.includes('tax') || titleLower.includes('economy') || titleLower.includes('financial') || 
+           titleLower.includes('market') || titleLower.includes('budget') || titleLower.includes('treasury')) {
+    visualDescription = "Financial district during active market hours, federal treasury building with official activity, economic policy command center with government vehicles";
   }
-
-  const imageUrl = `data:image/png;base64,${data.artifacts[0].base64}`;
-  console.log('✅ Stability AI image generated successfully');
+  // Immigration keywords - BORDER/IMMIGRATION ENFORCEMENT scenes  
+  else if (titleLower.includes('immigration') || titleLower.includes('border') || titleLower.includes('deportation') || 
+           titleLower.includes('visa') || titleLower.includes('ice') || titleLower.includes('migrant')) {
+    visualDescription = "Immigration enforcement staging area with official vehicles, federal immigration facility during operations, border patrol command center with enforcement activity";
+  }
+  // Education keywords - ACADEMIC CRISIS scenes
+  else if (titleLower.includes('school') || titleLower.includes('university') || titleLower.includes('education') || 
+           titleLower.includes('student') || titleLower.includes('campus') || titleLower.includes('college')) {
+    visualDescription = "Educational institution during emergency response, campus security operation staging area, academic administration building with crisis response vehicles";
+  }
+  // Technology keywords - HIGH-TECH OPERATIONS scenes
+  else if (titleLower.includes('tech') || titleLower.includes('cyber') || titleLower.includes('data') || 
+           titleLower.includes('ai') || titleLower.includes('digital') || titleLower.includes('hack')) {
+    visualDescription = "High-tech cybersecurity operations center, advanced technology command facility with monitoring equipment, digital forensics staging area";
+  }
+  // War/Military keywords - MILITARY OPERATIONS scenes
+  else if (titleLower.includes('military') || titleLower.includes('war') || titleLower.includes('defense') || 
+           titleLower.includes('army') || titleLower.includes('navy') || titleLower.includes('pentagon')) {
+    visualDescription = "Military command center during operations, defense facility with official vehicles, pentagon-style government building with security presence";
+  }
+  // Homeless/Housing keywords - SOCIAL SERVICES scenes
+  else if (titleLower.includes('homeless') || titleLower.includes('housing') || titleLower.includes('shelter') ||
+           titleLower.includes('encampment') || titleLower.includes('tent')) {
+    visualDescription = "Social services command center with outreach vehicles, emergency housing facility with official response vehicles, urban policy enforcement staging area";
+  }
+  // Default for any other news - GENERAL GOVERNMENT ACTION
+  else {
+    visualDescription = "Federal government building during active operations, official response staging area with government vehicles, institutional command center with administrative activity";
+  }
   
-  return { success: true, imageUrl };
+  const prompt = `Dynamic news photography: ${visualDescription}, active scene in progress, operational environment, no people visible, no text anywhere, no signage, photorealistic documentary style, professional news photography, high quality institutional photography`;
+  
+  console.log('🎨 Generated description:', visualDescription);
+  console.log('🎨 Final prompt length:', prompt.length, 'characters');
+  
+  return prompt;
 }
 
 // SINGLE GET FUNCTION - handles both API status and dashboard data
@@ -900,8 +824,8 @@ Write the news summary now with proper paragraph formatting:`;
       try {
         // Try providers in order of preference
         const providers = [
-          { name: 'Stability AI', key: 'STABILITY_API_KEY', func: generateStabilityImage },
           { name: 'Freepik', key: 'FREEPIK_API_KEY', func: generateFreepikImage },
+          { name: 'Stability AI', key: 'STABILITY_API_KEY', func: generateStabilityImage },
           { name: 'DALL-E', key: 'OPENAI_API_KEY', func: generateDalleImage }
         ];
 
