@@ -763,12 +763,12 @@ Write the news summary now with proper paragraph formatting:`;
       });
     }
 
-    if (action === 'generate_image') {
-      console.log('🎨 Starting multi-provider image generation for:', title);
+    if (action === 'generate_image_prompt') {
+      console.log('🎨 Starting image prompt generation for:', title);
       
       if (!title || title.trim().length === 0) {
         return NextResponse.json({ 
-          error: 'No article title provided for image generation.' 
+          error: 'No article title provided for image prompt generation.' 
         }, { status: 400 });
       }
 
@@ -777,6 +777,26 @@ Write the news summary now with proper paragraph formatting:`;
       const imagePrompt = generateNewsImagePrompt(title, articleContent);
 
       console.log('🎨 Generated prompt:', imagePrompt);
+      
+      return NextResponse.json({ 
+        result: imagePrompt,
+        usage: { prompt_tokens: imagePrompt.length }
+      });
+    }
+
+    if (action === 'generate_image') {
+      console.log('🎨 Starting image generation with custom prompt');
+      
+      // Use the provided prompt directly instead of generating one
+      const imagePrompt = prompt || body.prompt;
+      
+      if (!imagePrompt || imagePrompt.trim().length === 0) {
+        return NextResponse.json({ 
+          error: 'No image prompt provided for image generation.' 
+        }, { status: 400 });
+      }
+
+      console.log('🎨 Using prompt:', imagePrompt);
 
       try {
         // Try providers in order of preference
@@ -1206,7 +1226,7 @@ Provide only the Korean translation:`;
     }
     
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image, update_status, update_content, start_over, add_manual_article' 
+      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article' 
     }, { status: 400 });
 
   } catch (error) {
