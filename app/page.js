@@ -515,12 +515,38 @@ export default function AAVMDashboard() {
     ));
   };
 
-  const handleEditDateline = (articleId, newDateline) => {
-    setArticles(prev => prev.map(a => 
-      a.id === articleId 
-        ? { ...a, dateline: newDateline }
-        : a
-    ));
+  const handleEditDateline = async (articleId, newDateline) => {
+    try {
+      // Save to backend first
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update_content',
+          articleId: articleId,
+          updates: {
+            dateline: newDateline.toUpperCase() // Ensure it's uppercase
+          }
+        }),
+      });
+  
+      if (response.ok) {
+        // Only update UI after successful save
+        setArticles(prev => prev.map(a => 
+          a.id === articleId 
+            ? { ...a, dateline: newDateline.toUpperCase() }
+            : a
+        ));
+        console.log('✅ Dateline saved successfully');
+      } else {
+        throw new Error('Failed to save dateline');
+      }
+    } catch (error) {
+      console.error('❌ Error saving dateline:', error);
+      alert('Failed to save dateline. Please try again.');
+    }
   };
   
   const handleApproveTitle = async (articleId) => {
@@ -1558,10 +1584,10 @@ export default function AAVMDashboard() {
                             placeholder="CITY NAME"
                           />
                           <button 
-                            onClick={() => {
+                            onClick={async () => {
                               const input = document.getElementById(`dateline-edit-${article.id}`);
                               if (input) {
-                                handleEditDateline(article.id, input.value.toUpperCase());
+                                await handleEditDateline(article.id, input.value.toUpperCase());
                                 setArticles(prev => prev.map(a => 
                                   a.id === article.id ? {...a, editingDateline: false} : a
                                 ));
