@@ -179,38 +179,209 @@ function updateInFile(articleId, updates) {
   };
 }
 
-// Safe, concise prompt generation for Freepik Mystic (removes real names)
+// Content-aware prompt generation that actually reads the story
 function generateNewsImagePrompt(title, content) {
   // Remove real person names to avoid content policy issues
   let safeTitle = title
     .replace(/Trump/gi, 'government official')
     .replace(/Biden/gi, 'administration official')
     .replace(/Harris/gi, 'political figure')
-    .replace(/[A-Z][a-z]+ [A-Z][a-z]+/g, 'official'); // Generic name pattern replacement
+    .replace(/[A-Z][a-z]+ [A-Z][a-z]+/g, 'official');
 
   const text = `${safeTitle} ${content}`.toLowerCase();
   
-  // Extract story concepts without names
-  let concepts = [];
-  if (text.includes('census')) concepts.push('census bureau');
-  if (text.includes('congress') || text.includes('congressional')) concepts.push('congressional office');
-  if (text.includes('government') || text.includes('federal')) concepts.push('federal building');
-  if (text.includes('court') || text.includes('judge')) concepts.push('courthouse');
-  if (text.includes('hospital') || text.includes('medical') || text.includes('health')) concepts.push('healthcare facility');
-  if (text.includes('school') || text.includes('university') || text.includes('education')) concepts.push('educational institution');
-  if (text.includes('detention') || text.includes('immigration')) concepts.push('institutional facility');
-  if (text.includes('technology') || text.includes('tech')) concepts.push('technology center');
-  if (text.includes('business') || text.includes('corporate')) concepts.push('business office');
-  if (text.includes('community')) concepts.push('community center');
-
-  const setting = concepts.length > 0 ? concepts.slice(0, 3).join(', ') : 'government office';
+  // Analyze what's actually happening in this story
+  let storyContext = analyzeStoryContent(text, safeTitle);
+  
+  // Generate appropriate visual setting
+  const setting = generateVisualSetting(storyContext);
   
   // Create safe, concise prompt
-  const prompt = `Professional news photography: ${setting} interior, institutional architecture, no people, no text, photorealistic documentary style, professional lighting.`;
+  const prompt = `Professional news photography: ${setting}, institutional architecture, no people, no text, photorealistic documentary style, professional lighting.`;
 
-  console.log('🎨 Generated safe Mystic prompt for:', title.substring(0, 50) + '...');
+  console.log('🎨 Generated smart prompt for:', safeTitle.substring(0, 50) + '...');
+  console.log('🎨 Story context:', storyContext.type, '-', storyContext.focus);
   console.log('🎨 Prompt length:', prompt.length, 'characters');
+  
   return prompt;
+}
+
+function analyzeStoryContent(text, title) {
+  // What type of story is this?
+  let storyType = 'general';
+  let storyFocus = '';
+  let storyTone = 'neutral';
+  
+  // Health/Medical stories
+  if (text.includes('virus') || text.includes('disease') || text.includes('outbreak') || 
+      text.includes('epidemic') || text.includes('health') || text.includes('medical')) {
+    storyType = 'health';
+    
+    if (text.includes('outbreak') || text.includes('epidemic') || text.includes('virus')) {
+      storyFocus = 'outbreak';
+      storyTone = 'urgent';
+    } else if (text.includes('research') || text.includes('study')) {
+      storyFocus = 'research';
+    } else if (text.includes('hospital') || text.includes('treatment')) {
+      storyFocus = 'treatment';
+    } else {
+      storyFocus = 'general_health';
+    }
+  }
+  
+  // Economic/Financial stories
+  else if (text.includes('tax') || text.includes('economic') || text.includes('financial') ||
+           text.includes('budget') || text.includes('revenue') || text.includes('income')) {
+    storyType = 'economic';
+    
+    if ((text.includes('rich') || text.includes('wealthy')) && 
+        (text.includes('poor') || text.includes('inequality') || text.includes('disparity'))) {
+      storyFocus = 'inequality';
+      storyTone = 'serious';
+    } else if (text.includes('crisis') || text.includes('recession')) {
+      storyFocus = 'crisis';
+      storyTone = 'urgent';
+    } else {
+      storyFocus = 'policy';
+    }
+  }
+  
+  // Law enforcement/Crime stories
+  else if (text.includes('police') || text.includes('crime') || text.includes('arrest') ||
+           text.includes('investigation') || text.includes('enforcement')) {
+    storyType = 'law_enforcement';
+    
+    if (text.includes('takeover') || text.includes('federal') || text.includes('control')) {
+      storyFocus = 'federal_intervention';
+      storyTone = 'tense';
+    } else if (text.includes('community') || text.includes('local')) {
+      storyFocus = 'community_policing';
+    } else {
+      storyFocus = 'general_enforcement';
+    }
+  }
+  
+  // Education stories
+  else if (text.includes('school') || text.includes('university') || text.includes('student') ||
+           text.includes('education') || text.includes('campus')) {
+    storyType = 'education';
+    
+    if (text.includes('protest') || text.includes('discrimination') || text.includes('investigation')) {
+      storyFocus = 'controversy';
+      storyTone = 'tense';
+    } else if (text.includes('funding') || text.includes('grants')) {
+      storyFocus = 'funding';
+    } else {
+      storyFocus = 'academic';
+    }
+  }
+  
+  // Immigration stories
+  else if (text.includes('immigration') || text.includes('border') || text.includes('visa') ||
+           text.includes('deportation') || text.includes('detention')) {
+    storyType = 'immigration';
+    
+    if (text.includes('detention') || text.includes('facility')) {
+      storyFocus = 'detention';
+      storyTone = 'serious';
+    } else if (text.includes('court') || text.includes('hearing')) {
+      storyFocus = 'legal_proceedings';
+    } else {
+      storyFocus = 'policy';
+    }
+  }
+  
+  // Political/Government stories
+  else if (text.includes('government') || text.includes('congress') || text.includes('senate') ||
+           text.includes('federal') || text.includes('administration')) {
+    storyType = 'political';
+    
+    if (text.includes('investigation') || text.includes('scandal')) {
+      storyFocus = 'investigation';
+      storyTone = 'serious';
+    } else if (text.includes('election') || text.includes('voting')) {
+      storyFocus = 'electoral';
+    } else {
+      storyFocus = 'governance';
+    }
+  }
+  
+  return { type: storyType, focus: storyFocus, tone: storyTone };
+}
+
+function generateVisualSetting(context) {
+  const { type, focus, tone } = context;
+  
+  // Health/Medical visuals
+  if (type === 'health') {
+    if (focus === 'outbreak') {
+      return 'modern epidemiology laboratory with sterile white surfaces and advanced monitoring equipment';
+    } else if (focus === 'research') {
+      return 'cutting-edge medical research facility with glass laboratories and clinical architecture';
+    } else if (focus === 'treatment') {
+      return 'contemporary hospital corridor with clean medical facility design';
+    } else {
+      return 'sleek public health center with modern healthcare architecture';
+    }
+  }
+  
+  // Economic/Financial visuals
+  else if (type === 'economic') {
+    if (focus === 'inequality') {
+      return 'urban financial district with contrasting architectural styles showing economic disparity';
+    } else if (focus === 'crisis' && tone === 'urgent') {
+      return 'imposing financial center with dramatic lighting and stark glass facades';
+    } else {
+      return 'sophisticated financial district with sleek glass towers and urban depth';
+    }
+  }
+  
+  // Law enforcement visuals
+  else if (type === 'law_enforcement') {
+    if (focus === 'federal_intervention') {
+      return 'imposing federal building with authoritative architecture and strong geometric lines';
+    } else if (focus === 'community_policing') {
+      return 'modern municipal building with accessible civic architecture';
+    } else {
+      return 'urban police headquarters with contemporary law enforcement facility design';
+    }
+  }
+  
+  // Education visuals
+  else if (type === 'education') {
+    if (focus === 'controversy' && tone === 'tense') {
+      return 'university administration building with formal academic architecture and dramatic lighting';
+    } else if (focus === 'funding') {
+      return 'prestigious university campus with classical academic buildings and modern additions';
+    } else {
+      return 'modern educational institution with contemporary campus architecture';
+    }
+  }
+  
+  // Immigration visuals
+  else if (type === 'immigration') {
+    if (focus === 'detention') {
+      return 'secure government facility with institutional architecture and controlled access design';
+    } else if (focus === 'legal_proceedings') {
+      return 'federal courthouse with formal judicial architecture and marble columns';
+    } else {
+      return 'immigration services building with official government facility design';
+    }
+  }
+  
+  // Political/Government visuals
+  else if (type === 'political') {
+    if (focus === 'investigation' && tone === 'serious') {
+      return 'federal government building with imposing architecture and dramatic shadows';
+    } else if (focus === 'electoral') {
+      return 'civic center with democratic institutional architecture and public access design';
+    } else {
+      return 'government administrative building with official institutional architecture';
+    }
+  }
+  
+  // Default fallback
+  return 'modern institutional building with professional architecture and natural lighting';
 }
 
 // SINGLE GET FUNCTION - handles both API status and dashboard data
