@@ -124,7 +124,9 @@ export default function AAVMDashboard() {
         return response.json();
       })
       .then(data => {
-        console.log('Loaded dashboard data:', data);
+        console.log('🔍 Loaded dashboard data:', data);
+        console.log('🔍 First article dateline:', data.articles[0]?.dateline);
+        console.log('🔍 First article author:', data.articles[0]?.author);
         setArticles(data.articles || []);
         setAnalytics(data.analytics || {
           articles_scraped_today: 0,
