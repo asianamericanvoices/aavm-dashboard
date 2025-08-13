@@ -1,4 +1,4 @@
-// app/api/ai/route.js - Enhanced with start_over functionality
+// app/api/ai/route.js - Enhanced with Stability.ai integration
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -179,6 +179,40 @@ function updateInFile(articleId, updates) {
   };
 }
 
+// Safe, concise prompt generation for Freepik Mystic (removes real names)
+function generateNewsImagePrompt(title, content) {
+  // Remove real person names to avoid content policy issues
+  let safeTitle = title
+    .replace(/Trump/gi, 'government official')
+    .replace(/Biden/gi, 'administration official')
+    .replace(/Harris/gi, 'political figure')
+    .replace(/[A-Z][a-z]+ [A-Z][a-z]+/g, 'official'); // Generic name pattern replacement
+
+  const text = `${safeTitle} ${content}`.toLowerCase();
+  
+  // Extract story concepts without names
+  let concepts = [];
+  if (text.includes('census')) concepts.push('census bureau');
+  if (text.includes('congress') || text.includes('congressional')) concepts.push('congressional office');
+  if (text.includes('government') || text.includes('federal')) concepts.push('federal building');
+  if (text.includes('court') || text.includes('judge')) concepts.push('courthouse');
+  if (text.includes('hospital') || text.includes('medical') || text.includes('health')) concepts.push('healthcare facility');
+  if (text.includes('school') || text.includes('university') || text.includes('education')) concepts.push('educational institution');
+  if (text.includes('detention') || text.includes('immigration')) concepts.push('institutional facility');
+  if (text.includes('technology') || text.includes('tech')) concepts.push('technology center');
+  if (text.includes('business') || text.includes('corporate')) concepts.push('business office');
+  if (text.includes('community')) concepts.push('community center');
+
+  const setting = concepts.length > 0 ? concepts.slice(0, 3).join(', ') : 'government office';
+  
+  // Create safe, concise prompt
+  const prompt = `Professional news photography: ${setting} interior, institutional architecture, no people, no text, photorealistic documentary style, professional lighting.`;
+
+  console.log('🎨 Generated safe Mystic prompt for:', title.substring(0, 50) + '...');
+  console.log('🎨 Prompt length:', prompt.length, 'characters');
+  return prompt;
+}
+
 // SINGLE GET FUNCTION - handles both API status and dashboard data
 export async function GET(request) {
   const url = new URL(request.url);
@@ -199,7 +233,8 @@ export async function GET(request) {
   }
   
   // Default: return API status
-  const hasApiKey = !!process.env.OPENAI_API_KEY;
+  const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+  const hasMysticKey = !!process.env.FREEPIK_API_KEY;
   const keyPreview = process.env.OPENAI_API_KEY ? 
     process.env.OPENAI_API_KEY.substring(0, 7) + '...' : 'Not found';
   
@@ -207,7 +242,8 @@ export async function GET(request) {
   
   return NextResponse.json({ 
     message: 'AI API route is working!',
-    hasApiKey,
+    hasOpenAIKey,
+    hasMysticKey,
     keyPreview,
     hasSupabase,
     dataSource: hasSupabase ? 'Supabase' : 'File System',
@@ -219,6 +255,7 @@ export async function POST(request) {
   console.log('🚀 POST REQUEST RECEIVED:', new Date().toISOString());
   
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const FREEPIK_API_KEY = process.env.FREEPIK_API_KEY;
 
   if (!OPENAI_API_KEY) {
     console.error('❌ No OpenAI API key found in environment variables');
@@ -729,7 +766,7 @@ Write the news summary now with proper paragraph formatting:`;
     }
 
     if (action === 'generate_image') {
-      console.log('Starting image generation for:', title);
+      console.log('🎨 Starting multi-provider image generation for:', title);
       
       if (!title || title.trim().length === 0) {
         return NextResponse.json({ 
@@ -737,72 +774,49 @@ Write the news summary now with proper paragraph formatting:`;
         }, { status: 400 });
       }
 
-      // Create a descriptive prompt for the image
-      const imagePrompt = `Create a professional, photorealistic news illustration for this article: "${title}". 
+      // Generate dynamic, contextual prompt using our enhanced system
+      const articleContent = content || '';
+      const imagePrompt = generateNewsImagePrompt(title, articleContent);
 
-CRITICAL REQUIREMENTS - NO EXCEPTIONS:
-- Absolutely NO text, words, letters, numbers, signs, or any written content visible anywhere in the image
-- NO newspapers, documents, books, screens with text, or any readable materials
-- NO street signs, building signs, or any signage with text
-- NO weighing scales, balance scales, or justice-related imagery (avoid legal/court symbolism)
-- NO dollar signs, currency symbols, or financial symbols
-- Focus on natural scenes, people in action, buildings, technology, or abstract concepts
-- Photorealistic, high-quality photography style
-- NO recognizable faces of real people or celebrities
-- Clean, modern composition suitable for news media
-- Professional lighting and composition
-- Suitable for Asian American Voices Media publication
-- Think: landscapes, cityscapes, business environments, technology, healthcare settings, but NEVER include scales, legal symbols, or any form of readable text
-
-Create a visual representation that captures the essence of the news story through real-world scenes and objects, avoiding overused legal/financial symbolism.`;
-
-      console.log('Sending image generation request to OpenAI...');
+      console.log('🎨 Generated prompt:', imagePrompt);
 
       try {
-        const openaiResponse = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'dall-e-3',
-            prompt: imagePrompt,
-            n: 1,
-            size: '1024x1024',
-            quality: 'hd',
-            style: 'natural'
-          }),
-        });
+        // Try providers in order of preference
+        const providers = [
+          { name: 'Stability AI', key: 'STABILITY_API_KEY', func: generateStabilityImage },
+          { name: 'Freepik', key: 'FREEPIK_API_KEY', func: generateFreepikImage },
+          { name: 'DALL-E', key: 'OPENAI_API_KEY', func: generateDalleImage }
+        ];
 
-        console.log('OpenAI image response status:', openaiResponse.status);
+        let imageUrl = null;
+        let usedProvider = null;
 
-        if (!openaiResponse.ok) {
-          const errorText = await openaiResponse.text();
-          console.error('OpenAI image generation error:', errorText);
+        for (const provider of providers) {
+          const apiKey = process.env[provider.key];
           
-          let errorMessage = 'Image generation API request failed';
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error?.message || errorMessage;
-          } catch (e) {
-            // Use default message
+          if (!apiKey) {
+            console.log(`⏭️ ${provider.name} API key not configured, skipping...`);
+            continue;
           }
-          
-          return NextResponse.json({ 
-            error: `Image generation failed: ${errorMessage}`,
-            details: errorText
-          }, { status: 500 });
+
+          try {
+            console.log(`🎨 Trying ${provider.name} for image generation...`);
+            const result = await provider.func(imagePrompt, apiKey);
+            
+            if (result.success) {
+              imageUrl = result.imageUrl;
+              usedProvider = provider.name;
+              console.log(`✅ ${provider.name} succeeded!`);
+              break;
+            }
+          } catch (error) {
+            console.log(`❌ ${provider.name} failed:`, error.message);
+            continue; // Try next provider
+          }
         }
 
-        const data = await openaiResponse.json();
-        const imageUrl = data.data?.[0]?.url;
-        
         if (!imageUrl) {
-          console.error('No image URL in OpenAI response:', JSON.stringify(data, null, 2));
-          return NextResponse.json({ 
-            error: 'No image URL returned from OpenAI' 
-          }, { status: 500 });
+          throw new Error('All image generation providers failed');
         }
 
         // Save the generated image URL to the article (enhanced with Supabase)
@@ -814,21 +828,136 @@ Create a visual representation that captures the essence of the news story throu
           });
         }
 
-        console.log('Image generated successfully:', imageUrl);
+        console.log(`🎨 Image generated successfully with ${usedProvider}`);
         
         return NextResponse.json({ 
           result: imageUrl,
-          usage: data.usage,
+          prompt_used: imagePrompt,
+          provider: usedProvider,
+          usage: { prompt_tokens: imagePrompt.length },
           dataSource: supabase ? 'Supabase' : 'File System'
         });
 
       } catch (error) {
-        console.error('Image generation error:', error);
+        console.error('🎨 All image generation providers failed:', error);
         return NextResponse.json({ 
           error: `Image generation failed: ${error.message}`,
         }, { status: 500 });
       }
     }
+
+// Optimized Stability AI function for your existing code
+async function generateStabilityImage(prompt, apiKey) {
+  console.log('🎨 Calling Stability AI with prompt:', prompt.substring(0, 100) + '...');
+  
+  // Enhanced prompt for news photography
+  const stabilityPrompt = `${prompt}, professional photography, high quality, detailed, realistic, 4k resolution, documentary style, clean composition, news media quality`;
+
+  const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      text_prompts: [{ text: stabilityPrompt, weight: 1 }],
+      cfg_scale: 7,          // Good balance of creativity vs prompt adherence
+      height: 1024,
+      width: 1024,
+      samples: 1,
+      steps: 30,             // Good quality vs speed balance
+      seed: 0,               // Random seed for variety
+      style_preset: "photographic", // Perfect for news images
+    }),
+  });
+
+  console.log('🎨 Stability AI response status:', response.status);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ Stability AI error:', errorText);
+    throw new Error(`Stability AI error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  
+  if (!data.artifacts || !data.artifacts[0]) {
+    throw new Error('No image returned from Stability AI');
+  }
+
+  const imageUrl = `data:image/png;base64,${data.artifacts[0].base64}`;
+  console.log('✅ Stability AI image generated successfully');
+  
+  return { success: true, imageUrl };
+}
+
+// Environment variable you'll need in Vercel:
+// STABILITY_API_KEY=your_stability_api_key_here
+
+async function generateFreepikImage(prompt, apiKey) {
+  const response = await fetch('https://api.freepik.com/v1/ai/text-to-image', {
+    method: 'POST',
+    headers: {
+      'x-freepik-api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt: prompt,
+      num_images: 1,
+      image: { size: "square_hd" },
+      styling: { style: "photo", color: "color", lightning: "studio" },
+      ai_model: "freepik-flux"
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Freepik API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const imageUrl = data.data?.[0]?.base64 ? 
+    `data:image/jpeg;base64,${data.data[0].base64}` : 
+    data.data?.[0]?.url;
+    
+  if (!imageUrl) {
+    throw new Error('No image URL returned from Freepik');
+  }
+
+  return { success: true, imageUrl };
+}
+
+async function generateDalleImage(prompt, apiKey) {
+  const dallePrompt = `Create a professional, photorealistic news photograph: ${prompt}. High-quality photography style, suitable for news media publication, clean composition, professional lighting, documentary photography style.`;
+
+  const response = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'dall-e-3',
+      prompt: dallePrompt,
+      n: 1,
+      size: '1024x1024',
+      quality: 'hd',
+      style: 'natural'
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`DALL-E API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const imageUrl = data.data?.[0]?.url;
+  
+  if (!imageUrl) {
+    throw new Error('No image URL returned from DALL-E');
+  }
+
+  return { success: true, imageUrl };
+}
 
     if (action === 'translate') {
       console.log('Starting translation to:', language);
@@ -1088,7 +1217,7 @@ Provide only the Korean translation:`;
     // More detailed error information
     let errorMessage = error.message;
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      errorMessage = 'Network error connecting to OpenAI API';
+      errorMessage = 'Network error connecting to API';
     }
     
     return NextResponse.json({ 
