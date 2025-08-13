@@ -813,13 +813,17 @@ Write the news summary now with proper paragraph formatting:`;
 
     if (action === 'generate_image') {
       console.log('🎨 Starting image generation with custom prompt');
+      console.log('🔍 Request body:', JSON.stringify(body, null, 2));
       
       // Use the provided prompt directly instead of generating one
-      const imagePrompt = prompt || body.prompt;
+      const { prompt: customPrompt } = body;
+      const imagePrompt = customPrompt;
       
       if (!imagePrompt || imagePrompt.trim().length === 0) {
+        console.error('❌ No image prompt received. Body:', JSON.stringify(body, null, 2));
         return NextResponse.json({ 
-          error: 'No image prompt provided for image generation.' 
+          error: 'No image prompt provided for image generation.',
+          debug: { receivedBody: body }
         }, { status: 400 });
       }
 
