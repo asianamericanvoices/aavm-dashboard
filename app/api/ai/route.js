@@ -1210,32 +1210,26 @@ Provide only the Korean translation:`;
     }
 
     if (action === 'delete_article') {
-      console.log('🗑️ DELETE ARTICLE REQUEST:', { action, articleId });
+      console.log('🗑️ SOFT DELETE ARTICLE REQUEST:', { action, articleId });
       
       if (!articleId) {
         return NextResponse.json({ error: 'Article ID required for deletion' }, { status: 400 });
       }
 
       try {
-        if (supabase) {
-          // Delete from Supabase
-          const { error } = await supabase
-            .from('articles')
-            .delete()
-            .eq('id', articleId);
+        // Soft delete - just change status to 'deleted'
+        const updatedArticle = await updateArticleInData(articleId, { 
+          status: 'deleted',
+          deleted_at: new Date().toISOString()
+        });
 
-          if (error) throw error;
-
-          console.log('✅ Article deleted from Supabase:', articleId);
-        } else {
-          // For file system, we can't actually delete, just log
-          console.log('📁 File system - would delete article:', articleId);
-        }
+        console.log('✅ Article moved to deleted status:', articleId);
 
         return NextResponse.json({ 
           success: true, 
-          message: `Article deleted successfully ${supabase ? '(Supabase)' : '(File System)'}`,
-          articleId: articleId
+          message: `Article moved to deleted status ${supabase ? '(Supabase)' : '(File System)'}`,
+          articleId: articleId,
+          article: updatedArticle
         });
 
       } catch (error) {
@@ -1246,9 +1240,78 @@ Provide only the Korean translation:`;
         }, { status: 500 });
       }
     }
+
+    if (action === 'restore_article') {
+      console.log('♻️ RESTORE ARTICLE REQUEST:', { action, articleId });
+      
+      if (!articleId) {
+        return NextResponse.json({ error: 'Article ID required for restoration' }, { status: 400 });
+      }
+
+      try {
+        // Restore article to pending_synthesis
+        const updatedArticle = await updateArticleInData(articleId, { 
+          status: 'pending_synthesis',
+          deleted_at: null
+        });
+
+        console.log('✅ Article restored:', articleId);
+
+        return NextResponse.json({ 
+          success: true, 
+          message: `Article restored successfully ${supabase ? '(Supabase)' : '(File System)'}`,
+          articleId: articleId,
+          article: updatedArticle
+        });
+
+      } catch (error) {
+        console.error('❌ Error restoring article:', error);
+        return NextResponse.json({ 
+          error: 'Failed to restore article',
+          details: error.message 
+        }, { status: 500 });
+      }
+    }
+
+    if (action === 'permanent_delete_article') {
+      console.log('💀 PERMANENT DELETE ARTICLE REQUEST:', { action, articleId });
+      
+      if (!articleId) {
+        return NextResponse.json({ error: 'Article ID required for permanent deletion' }, { status: 400 });
+      }
+
+      try {
+        if (supabase) {
+          // Actually delete from Supabase
+          const { error } = await supabase
+            .from('articles')
+            .delete()
+            .eq('id', articleId);
+
+          if (error) throw error;
+
+          console.log('✅ Article permanently deleted from Supabase:', articleId);
+        } else {
+          console.log('📁 File system - would permanently delete article:', articleId);
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          message: `Article permanently deleted ${supabase ? '(Supabase)' : '(File System)'}`,
+          articleId: articleId
+        });
+
+      } catch (error) {
+        console.error('❌ Error permanently deleting article:', error);
+        return NextResponse.json({ 
+          error: 'Failed to permanently delete article',
+          details: error.message 
+        }, { status: 500 });
+      }
+    }
     
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article, delete_article' 
+      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article, delete_article, restore_article, permanent_delete_article' 
     }, { status: 400 });
 
   } catch (error) {
