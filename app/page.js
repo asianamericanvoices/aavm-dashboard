@@ -1544,8 +1544,8 @@ export default function AAVMDashboard() {
                       </div>
                       <textarea
                         id={`image-prompt-${article.id}`}
-                        value={article.imagePrompt || ''}
-                        onChange={(e) => handleEditImagePrompt(article.id, e.target.value)}
+                        defaultValue={article.imagePrompt || ''}
+                        onBlur={(e) => handleEditImagePrompt(article.id, e.target.value)}
                         className="w-full p-3 border border-blue-200 rounded resize-none text-sm"
                         rows="4"
                         placeholder="Image generation prompt will appear here..."
