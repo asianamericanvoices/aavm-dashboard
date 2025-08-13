@@ -179,13 +179,33 @@ function updateInFile(articleId, updates) {
   };
 }
 
-// Title-only prompt generation - simple and fast!
+// Title-only prompt generation - extract themes, not people!
 function generateNewsImagePrompt(title, content) {
-  console.log('🎨 Generating prompt from title only:', title);
+  console.log('🎨 Generating prompt from title themes:', title);
   
-  // Enhanced prompt with all the good instructions from before
-  const prompt = `Professional news photography related to: ${title}, photorealistic documentary style, professional lighting, no people visible anywhere, no faces, no human figures, no text, no words, no signage, no readable content, no screens with content, institutional setting, high quality news media image, clean composition, 4k resolution, professional photography`;
+  // Extract thematic concepts from title, remove specific people/politics
+  let thematicConcepts = title
+    // Remove all proper nouns (people, places, organizations)
+    .replace(/\b[A-Z][a-z]+('s)?\b/g, '')
+    // Clean up extra spaces
+    .replace(/\s+/g, ' ')
+    .trim();
   
+  // If we removed too much, fall back to key concept words
+  if (thematicConcepts.length < 10) {
+    const titleLower = title.toLowerCase();
+    if (titleLower.includes('tax') || titleLower.includes('economic')) thematicConcepts = 'tax policy economic impact';
+    else if (titleLower.includes('health') || titleLower.includes('medical')) thematicConcepts = 'healthcare medical policy';
+    else if (titleLower.includes('court') || titleLower.includes('legal')) thematicConcepts = 'legal judicial proceedings';
+    else if (titleLower.includes('immigration') || titleLower.includes('border')) thematicConcepts = 'immigration border policy';
+    else if (titleLower.includes('education') || titleLower.includes('school')) thematicConcepts = 'education academic policy';
+    else thematicConcepts = 'government policy institutional';
+  }
+  
+  // Create prompt focusing on themes/concepts, not people
+  const prompt = `Professional news photography representing themes of: ${thematicConcepts}, photorealistic documentary style, professional lighting, institutional architecture, government building exterior, no people visible anywhere, no faces, no human figures, no politicians, no officials, no text, no words, no signage, clean architectural composition, high quality news media image, 4k resolution`;
+  
+  console.log('🎨 Extracted themes:', thematicConcepts);
   console.log('🎨 Generated prompt:', prompt);
   
   return prompt;
