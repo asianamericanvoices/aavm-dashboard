@@ -1618,13 +1618,38 @@ export default function AAVMDashboard() {
                             placeholder="Enter author name"
                           />
                           <button 
-                            onClick={() => {
+                            onClick={async () => {
                               const input = document.getElementById(`author-edit-${article.id}`);
                               if (input) {
-                                handleEditAuthor(article.id, input.value);
-                                setArticles(prev => prev.map(a => 
-                                  a.id === article.id ? {...a, editingAuthor: false} : a
-                                ));
+                                try {
+                                  // Save to backend
+                                  const response = await fetch(window.location.origin + '/api/ai', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                      action: 'update_content',
+                                      articleId: article.id,
+                                      updates: {
+                                        author: input.value
+                                      }
+                                    }),
+                                  });
+                          
+                                  if (response.ok) {
+                                    handleEditAuthor(article.id, input.value);
+                                    setArticles(prev => prev.map(a => 
+                                      a.id === article.id ? {...a, editingAuthor: false} : a
+                                    ));
+                                    console.log('✅ Author saved successfully');
+                                  } else {
+                                    throw new Error('Failed to save author');
+                                  }
+                                } catch (error) {
+                                  console.error('❌ Error saving author:', error);
+                                  alert('Failed to save author. Please try again.');
+                                }
                               }
                             }}
                             className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
