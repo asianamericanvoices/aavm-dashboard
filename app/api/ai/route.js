@@ -144,6 +144,10 @@ async function updateArticleInData(articleId, updates) {
       if (updates.imageUrl !== undefined) supabaseUpdates.image_url = updates.imageUrl;
       if (updates.imageGenerated !== undefined) supabaseUpdates.image_generated = updates.imageGenerated;
       
+      // Add support for author and dateline
+      if (updates.author !== undefined) supabaseUpdates.author = updates.author;
+      if (updates.dateline !== undefined) supabaseUpdates.dateline = updates.dateline;
+      
       // Add support for discard/delete timestamps
       if (updates.deleted_at !== undefined) supabaseUpdates.deleted_at = updates.deleted_at;
       if (updates.discarded_at !== undefined) supabaseUpdates.discarded_at = updates.discarded_at;
