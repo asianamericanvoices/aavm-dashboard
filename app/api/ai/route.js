@@ -179,77 +179,14 @@ function updateInFile(articleId, updates) {
   };
 }
 
-// Pure code logic - NO OpenAI needed for prompt generation!
+// Title-only prompt generation - simple and fast!
 function generateNewsImagePrompt(title, content) {
-  console.log('🎨 Generating prompt from title:', title.substring(0, 50) + '...');
+  console.log('🎨 Generating prompt from title only:', title);
   
-  const titleLower = title.toLowerCase();
-  let visualDescription = "";
+  // Just use the title directly for Freepik
+  const prompt = `Professional news photography related to: ${title}, photorealistic documentary style, institutional setting, no people visible, no text anywhere, no signage, high quality news media image, clean composition`;
   
-  // Crisis/Emergency/Crackdown keywords - URGENT/ACTIVE scenes
-  if (titleLower.includes('crackdown') || titleLower.includes('raid') || titleLower.includes('deployment') || 
-      titleLower.includes('emergency') || titleLower.includes('crisis') || titleLower.includes('outbreak')) {
-    visualDescription = "Federal law enforcement vehicles staged for emergency operation, crisis response command center with official vehicles lined up, active government enforcement staging area";
-  }
-  // Jail/Prison/Arrest keywords - LAW ENFORCEMENT scenes
-  else if (titleLower.includes('jail') || titleLower.includes('arrest') || titleLower.includes('prison') || 
-           titleLower.includes('detained') || titleLower.includes('custody') || titleLower.includes('bars')) {
-    visualDescription = "Law enforcement facility exterior during active operation, police vehicles at detention center, correctional facility with official security presence";
-  }
-  // Investigation/Probe keywords - INVESTIGATION scenes
-  else if (titleLower.includes('investigation') || titleLower.includes('probe') || titleLower.includes('charges') ||
-           titleLower.includes('evidence') || titleLower.includes('fbi') || titleLower.includes('inquiry')) {
-    visualDescription = "Federal courthouse during active investigation, law enforcement evidence staging area, government investigation command center with official vehicles";
-  }
-  // Court/Legal keywords - JUSTICE scenes
-  else if (titleLower.includes('court') || titleLower.includes('trial') || titleLower.includes('judge') || 
-           titleLower.includes('lawsuit') || titleLower.includes('ruling') || titleLower.includes('verdict')) {
-    visualDescription = "Federal courthouse exterior with official vehicles during proceedings, justice department building with legal activity, court complex during active hearings";
-  }
-  // Healthcare/Medical keywords - MEDICAL EMERGENCY scenes
-  else if (titleLower.includes('hospital') || titleLower.includes('health') || titleLower.includes('medical') || 
-           titleLower.includes('virus') || titleLower.includes('outbreak') || titleLower.includes('cdc')) {
-    visualDescription = "Emergency medical response staging area, hospital emergency department with ambulances lined up, medical crisis response center with emergency vehicles";
-  }
-  // Economic/Financial keywords - FINANCIAL ACTION scenes
-  else if (titleLower.includes('tax') || titleLower.includes('economy') || titleLower.includes('financial') || 
-           titleLower.includes('market') || titleLower.includes('budget') || titleLower.includes('treasury')) {
-    visualDescription = "Financial district during active market hours, federal treasury building with official activity, economic policy command center with government vehicles";
-  }
-  // Immigration keywords - BORDER/IMMIGRATION ENFORCEMENT scenes  
-  else if (titleLower.includes('immigration') || titleLower.includes('border') || titleLower.includes('deportation') || 
-           titleLower.includes('visa') || titleLower.includes('ice') || titleLower.includes('migrant')) {
-    visualDescription = "Immigration enforcement staging area with official vehicles, federal immigration facility during operations, border patrol command center with enforcement activity";
-  }
-  // Education keywords - ACADEMIC CRISIS scenes
-  else if (titleLower.includes('school') || titleLower.includes('university') || titleLower.includes('education') || 
-           titleLower.includes('student') || titleLower.includes('campus') || titleLower.includes('college')) {
-    visualDescription = "Educational institution during emergency response, campus security operation staging area, academic administration building with crisis response vehicles";
-  }
-  // Technology keywords - HIGH-TECH OPERATIONS scenes
-  else if (titleLower.includes('tech') || titleLower.includes('cyber') || titleLower.includes('data') || 
-           titleLower.includes('ai') || titleLower.includes('digital') || titleLower.includes('hack')) {
-    visualDescription = "High-tech cybersecurity operations center, advanced technology command facility with monitoring equipment, digital forensics staging area";
-  }
-  // War/Military keywords - MILITARY OPERATIONS scenes
-  else if (titleLower.includes('military') || titleLower.includes('war') || titleLower.includes('defense') || 
-           titleLower.includes('army') || titleLower.includes('navy') || titleLower.includes('pentagon')) {
-    visualDescription = "Military command center during operations, defense facility with official vehicles, pentagon-style government building with security presence";
-  }
-  // Homeless/Housing keywords - SOCIAL SERVICES scenes
-  else if (titleLower.includes('homeless') || titleLower.includes('housing') || titleLower.includes('shelter') ||
-           titleLower.includes('encampment') || titleLower.includes('tent')) {
-    visualDescription = "Social services command center with outreach vehicles, emergency housing facility with official response vehicles, urban policy enforcement staging area";
-  }
-  // Default for any other news - GENERAL GOVERNMENT ACTION
-  else {
-    visualDescription = "Federal government building during active operations, official response staging area with government vehicles, institutional command center with administrative activity";
-  }
-  
-  const prompt = `Dynamic news photography: ${visualDescription}, active scene in progress, operational environment, no people visible, no text anywhere, no signage, photorealistic documentary style, professional news photography, high quality institutional photography`;
-  
-  console.log('🎨 Generated description:', visualDescription);
-  console.log('🎨 Final prompt length:', prompt.length, 'characters');
+  console.log('🎨 Generated prompt:', prompt);
   
   return prompt;
 }
