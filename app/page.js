@@ -917,9 +917,75 @@ export default function AAVMDashboard() {
     }
   };
 
-  const handleGenerateImage = async (articleId) => {
+  const handleGenerateImagePrompt = async (articleId) => {
     const article = articles.find(a => a.id === articleId);
     if (!article) return;
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, generatingPrompt: true }
+        : a
+    ));
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'generate_image_prompt',
+          title: article.displayTitle || article.aiTitle || article.originalTitle,
+          content: article.fullContent || '',
+          source: article.source,
+          articleId: articleId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate image prompt');
+      }
+
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              generatingPrompt: false,
+              imagePrompt: data.result,
+              showPromptEditor: true
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error generating image prompt:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              generatingPrompt: false,
+              imagePrompt: `Error: ${error.message}. Please try again.`
+            }
+          : a
+      ));
+    }
+  };
+
+  const handleEditImagePrompt = (articleId, newPrompt) => {
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, imagePrompt: newPrompt }
+        : a
+    ));
+  };
+
+  const handleGenerateImage = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article || !article.imagePrompt) {
+      alert('Please generate and review an image prompt first.');
+      return;
+    }
 
     setArticles(prev => prev.map(a => 
       a.id === articleId 
@@ -935,9 +1001,8 @@ export default function AAVMDashboard() {
         },
         body: JSON.stringify({
           action: 'generate_image',
-          title: article.displayTitle || article.aiTitle || article.originalTitle,
-          source: article.source,
-          articleId: articleId  // ✅ ADDED FOR PERSISTENCE
+          prompt: article.imagePrompt, // Use the edited prompt
+          articleId: articleId
         }),
       });
 
@@ -947,7 +1012,6 @@ export default function AAVMDashboard() {
 
       const data = await response.json();
       
-      // ✅ API saves automatically, just update UI
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
@@ -955,7 +1019,8 @@ export default function AAVMDashboard() {
               status: 'ready_for_publication',
               imageGenerated: true,
               imageGenerating: false,
-              imageUrl: data.result
+              imageUrl: data.result,
+              showPromptEditor: false
             }
           : a
       ));
@@ -1470,6 +1535,41 @@ export default function AAVMDashboard() {
                     </div>
                   </div>
 
+                  {/* Image Prompt Editor */}
+                  {article.showPromptEditor && (
+                    <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                      <h4 className="font-medium text-blue-900 mb-2">🎨 Image Generation Prompt</h4>
+                      <div className="text-sm text-blue-700 mb-2">
+                        Review and edit the AI-generated prompt below, then click "Generate Image" to create the image.
+                      </div>
+                      <textarea
+                        id={`image-prompt-${article.id}`}
+                        value={article.imagePrompt || ''}
+                        onChange={(e) => handleEditImagePrompt(article.id, e.target.value)}
+                        className="w-full p-3 border border-blue-200 rounded resize-none text-sm"
+                        rows="4"
+                        placeholder="Image generation prompt will appear here..."
+                      />
+                      <div className="flex gap-2 mt-3">
+                        <button 
+                          onClick={() => handleGenerateImage(article.id)}
+                          disabled={!article.imagePrompt || article.imageGenerating}
+                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 text-sm"
+                        >
+                          {article.imageGenerating ? 'Generating Image...' : 'Generate Image'}
+                        </button>
+                        <button 
+                          onClick={() => setArticles(prev => prev.map(a => 
+                            a.id === article.id ? {...a, showPromptEditor: false} : a
+                          ))}
+                          className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {article.imageUrl && (
                     <div className="mb-4">
                       <img 
@@ -1930,10 +2030,11 @@ export default function AAVMDashboard() {
 
                   {article.status === 'ready_for_image' && (
                     <button 
-                      onClick={() => handleGenerateImage(article.id)}
-                      className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                      onClick={() => handleGenerateImagePrompt(article.id)}
+                      disabled={article.generatingPrompt}
+                      className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm disabled:bg-gray-400"
                     >
-                      Generate AI Image
+                      {article.generatingPrompt ? 'Generating Prompt...' : 'Generate Image Prompt'}
                     </button>
                   )}
                   {article.status === 'generating_image' && (
@@ -1948,10 +2049,11 @@ export default function AAVMDashboard() {
                   {article.status === 'ready_for_publication' && (
                     <>
                       <button 
-                        onClick={() => handleGenerateImage(article.id)}
-                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                        onClick={() => handleGenerateImagePrompt(article.id)}
+                        disabled={article.generatingPrompt}
+                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm disabled:bg-gray-400"
                       >
-                        Regenerate Image
+                        {article.generatingPrompt ? 'Generating Prompt...' : 'Regenerate Image Prompt'}
                       </button>
                       <button 
                         onClick={() => handleApproveForPublication(article.id)}
