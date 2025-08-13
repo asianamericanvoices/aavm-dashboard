@@ -196,8 +196,8 @@ async function generateNewsImagePrompt(title, content) {
     // Step 1: Let OpenAI analyze the story and suggest visual concepts
     const visualDescription = await generateVisualDescriptionWithAI(safeTitle, content);
     
-    // Step 2: Create final Stability AI prompt
-    const prompt = `Professional news photography: ${visualDescription}, photorealistic documentary style, professional lighting, no people, no text, no words, no signage, high quality news media image.`;
+    // Step 2: Create final Stability AI prompt with stronger "no text" instructions
+    const prompt = `Professional news photography: ${visualDescription}, photorealistic documentary style, professional lighting, no people visible, completely text-free, no words anywhere, no signage, no screens, no documents, no newspapers, no readable text of any kind, high quality news media image, clean architectural photography.`;
     
     console.log('🎨 Step 2: Final visual description:', visualDescription);
     console.log('🎨 Final prompt length:', prompt.length, 'characters');
@@ -235,10 +235,12 @@ Create a visual description that:
 - Would work well as a news image accompaniment
 
 Examples of good visual descriptions:
-- "Industrial steel manufacturing facility with dramatic lighting and heavy machinery"
-- "Luxury downtown financial district contrasted with modest residential neighborhood"
-- "High-tech medical laboratory with sterile surfaces and advanced equipment"
-- "University campus with formal academic architecture under stormy dramatic skies"
+- "Government treasury building with imposing columns and formal architecture"
+- "Financial district skyscrapers with modern glass facades reflecting economic power"
+- "Congressional building exterior with neoclassical architecture and American flag"
+- "Federal courthouse steps with marble columns under dramatic sky"
+- "Wall Street financial center with towering office buildings"
+- "IRS headquarters building with institutional government architecture"
 
 Respond with ONLY a concise visual description (1-2 sentences max) that would make an engaging news photograph:`;
 
@@ -287,8 +289,8 @@ Respond with ONLY a concise visual description (1-2 sentences max) that would ma
 async function generateStabilityImage(prompt, apiKey) {
   console.log('🎨 Calling Stability AI with prompt:', prompt.substring(0, 100) + '...');
   
-  // Enhanced prompt for news photography
-  const stabilityPrompt = `${prompt}, professional photography, high quality, detailed, realistic, 4k resolution, documentary style, clean composition, news media quality`;
+  // Enhanced prompt for news photography with stronger no-text instructions
+  const stabilityPrompt = `${prompt}, architectural photography, no text visible anywhere, no signage, no screens with content, no readable elements, professional composition, documentary style, clean and minimal`;
 
   const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
     method: 'POST',
