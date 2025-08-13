@@ -144,6 +144,13 @@ async function updateArticleInData(articleId, updates) {
       if (updates.imageUrl !== undefined) supabaseUpdates.image_url = updates.imageUrl;
       if (updates.imageGenerated !== undefined) supabaseUpdates.image_generated = updates.imageGenerated;
       
+      // Add support for discard/delete timestamps
+      if (updates.deleted_at !== undefined) supabaseUpdates.deleted_at = updates.deleted_at;
+      if (updates.discarded_at !== undefined) supabaseUpdates.discarded_at = updates.discarded_at;
+      
+      // Always update the updated_at timestamp
+      supabaseUpdates.updated_at = new Date().toISOString();
+      
       const { data, error } = await supabase
         .from('articles')
         .update(supabaseUpdates)
@@ -314,8 +321,17 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Article ID required for status updates' }, { status: 400 });
       }
     
+      // Add timestamp for discard/delete actions
+      const timestampUpdates = { ...updates };
+      if (status === 'discarded' && !timestampUpdates.discarded_at) {
+        timestampUpdates.discarded_at = new Date().toISOString();
+      }
+      if (status === 'deleted' && !timestampUpdates.deleted_at) {
+        timestampUpdates.deleted_at = new Date().toISOString();
+      }
+    
       // Enhanced: Try Supabase first, fall back to file system
-      const updatedArticle = await updateArticleInData(articleId, { status, ...updates });
+      const updatedArticle = await updateArticleInData(articleId, { status, ...timestampUpdates });
       
       return NextResponse.json({ 
         success: true, 
