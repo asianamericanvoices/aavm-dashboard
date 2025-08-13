@@ -183,8 +183,8 @@ function updateInFile(articleId, updates) {
 function generateNewsImagePrompt(title, content) {
   console.log('🎨 Generating prompt from title only:', title);
   
-  // Just use the title directly for Freepik
-  const prompt = `Professional news photography related to: ${title}, photorealistic documentary style, institutional setting, no people visible, no text anywhere, no signage, high quality news media image, clean composition`;
+  // Enhanced prompt with all the good instructions from before
+  const prompt = `Professional news photography related to: ${title}, photorealistic documentary style, professional lighting, no people visible anywhere, no faces, no human figures, no text, no words, no signage, no readable content, no screens with content, institutional setting, high quality news media image, clean composition, 4k resolution, professional photography`;
   
   console.log('🎨 Generated prompt:', prompt);
   
