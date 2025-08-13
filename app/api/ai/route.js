@@ -69,7 +69,8 @@ async function readDashboardData() {
         priority: article.priority,
         relevanceScore: article.relevance_score,
         contentQuality: article.content_quality || 'unknown',
-        wordCount: article.word_count || 0
+        wordCount: article.word_count || 0,
+        dateline: article.dateline || ''
       }));
 
       return {
