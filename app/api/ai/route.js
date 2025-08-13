@@ -179,60 +179,13 @@ function updateInFile(articleId, updates) {
   };
 }
 
-// Title-only prompt generation - extract themes, not people!
+// Simple title-based prompt generation with professional news photography constraints
 function generateNewsImagePrompt(title, content) {
-  console.log('🎨 Generating prompt from title themes:', title);
+  console.log('🎨 Generating prompt from title:', title);
   
-  const titleLower = title.toLowerCase();
+  // Use the title directly as the main concept, add professional news photography constraints
+  const prompt = `${title}, professional news photography, photorealistic documentary style, professional lighting, no people visible anywhere, no faces, no human figures, no politicians, no officials, no text, no words, no signage, high quality news media image, 4k resolution`;
   
-  // Smart keyword extraction based on context
-  let thematicConcepts = '';
-  
-  // Tax and Economic themes
-  if (titleLower.includes('tax') || titleLower.includes('economic') || titleLower.includes('wealth') || titleLower.includes('income')) {
-    thematicConcepts = 'tax policy economic inequality wealth distribution financial legislation government treasury building';
-  }
-  // Healthcare themes
-  else if (titleLower.includes('health') || titleLower.includes('medical') || titleLower.includes('hospital')) {
-    thematicConcepts = 'healthcare medical policy hospital administration government health building';
-  }
-  // Legal and Court themes
-  else if (titleLower.includes('court') || titleLower.includes('legal') || titleLower.includes('judge') || titleLower.includes('lawsuit')) {
-    thematicConcepts = 'legal judicial proceedings courthouse justice system government building';
-  }
-  // Immigration themes
-  else if (titleLower.includes('immigration') || titleLower.includes('border') || titleLower.includes('visa') || titleLower.includes('deportation')) {
-    thematicConcepts = 'immigration border policy customs immigration office government facility';
-  }
-  // Education themes
-  else if (titleLower.includes('education') || titleLower.includes('school') || titleLower.includes('university') || titleLower.includes('student')) {
-    thematicConcepts = 'education academic policy university campus government education building';
-  }
-  // Housing and Urban themes
-  else if (titleLower.includes('housing') || titleLower.includes('rent') || titleLower.includes('affordable') || titleLower.includes('urban')) {
-    thematicConcepts = 'housing policy urban development affordable housing city planning government building';
-  }
-  // Technology and AI themes
-  else if (titleLower.includes('tech') || titleLower.includes('ai') || titleLower.includes('data') || titleLower.includes('cyber')) {
-    thematicConcepts = 'technology policy data center modern government building digital infrastructure';
-  }
-  // Environment and Climate themes
-  else if (titleLower.includes('climate') || titleLower.includes('environment') || titleLower.includes('energy') || titleLower.includes('pollution')) {
-    thematicConcepts = 'environmental policy climate change energy infrastructure government environmental building';
-  }
-  // Trade and Business themes
-  else if (titleLower.includes('trade') || titleLower.includes('business') || titleLower.includes('market') || titleLower.includes('industry')) {
-    thematicConcepts = 'trade policy business regulation market oversight government commerce building';
-  }
-  // Default government/political themes
-  else {
-    thematicConcepts = 'government policy institutional democracy civic responsibility government building exterior';
-  }
-  
-  // Create prompt focusing on themes/concepts, not people
-  const prompt = `Professional news photography representing themes of: ${thematicConcepts}, photorealistic documentary style, professional lighting, institutional architecture, no people visible anywhere, no faces, no human figures, no politicians, no officials, no text, no words, no signage, clean architectural composition, high quality news media image, 4k resolution`;
-  
-  console.log('🎨 Extracted themes:', thematicConcepts);
   console.log('🎨 Generated prompt:', prompt);
   
   return prompt;
