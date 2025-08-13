@@ -304,11 +304,104 @@ export default function AAVMDashboard() {
     }
   };
   
-  const handleDiscardArticle = (articleId) => {
-    if (confirm('Are you sure you want to discard this article?')) {
-      setArticles(prev => prev.map(a => 
-        a.id === articleId ? { ...a, status: 'discarded' } : a
-      ));
+  const handleDeleteArticle = async (articleId) => {
+    if (confirm('Are you sure you want to delete this article? You can restore it later from the Deleted Articles section.')) {
+      try {
+        const response = await fetch(window.location.origin + '/api/ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'delete_article',
+            articleId: articleId
+          }),
+        });
+
+        if (response.ok) {
+          // Move article to deleted status in UI
+          setArticles(prev => prev.map(a => 
+            a.id === articleId 
+              ? { ...a, status: 'deleted', deleted_at: new Date().toISOString() }
+              : a
+          ));
+          
+          console.log('✅ Article moved to deleted status');
+        } else {
+          throw new Error('Failed to delete article');
+        }
+      } catch (error) {
+        console.error('❌ Error deleting article:', error);
+        alert('Failed to delete article. Please try again.');
+      }
+    }
+  };
+
+  const handleRestoreArticle = async (articleId) => {
+    if (confirm('Are you sure you want to restore this article?')) {
+      try {
+        const response = await fetch(window.location.origin + '/api/ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'restore_article',
+            articleId: articleId
+          }),
+        });
+
+        if (response.ok) {
+          // Restore article in UI
+          setArticles(prev => prev.map(a => 
+            a.id === articleId 
+              ? { ...a, status: 'pending_synthesis', deleted_at: null }
+              : a
+          ));
+          
+          console.log('✅ Article restored successfully');
+        } else {
+          throw new Error('Failed to restore article');
+        }
+      } catch (error) {
+        console.error('❌ Error restoring article:', error);
+        alert('Failed to restore article. Please try again.');
+      }
+    }
+  };
+
+  const handlePermanentDelete = async (articleId) => {
+    if (confirm('Are you sure you want to PERMANENTLY delete this article? This action cannot be undone and will remove it from the database forever.')) {
+      try {
+        const response = await fetch(window.location.origin + '/api/ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'permanent_delete_article',
+            articleId: articleId
+          }),
+        });
+
+        if (response.ok) {
+          // Remove article from UI completely
+          setArticles(prev => prev.filter(a => a.id !== articleId));
+          
+          // Update analytics
+          setAnalytics(prev => ({
+            ...prev,
+            total_articles: prev.total_articles - 1
+          }));
+          
+          console.log('✅ Article permanently deleted');
+        } else {
+          throw new Error('Failed to permanently delete article');
+        }
+      } catch (error) {
+        console.error('❌ Error permanently deleting article:', error);
+        alert('Failed to permanently delete article. Please try again.');
+      }
     }
   };
   
@@ -2271,6 +2364,95 @@ export default function AAVMDashboard() {
     );
   };
 
+  const DeletedArticles = () => {
+      const deletedArticles = articles.filter(a => a.status === 'deleted');
+      
+      return (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Deleted Articles</h2>
+              <p className="text-sm text-gray-500">
+                Articles that have been deleted. You can restore or permanently delete them.
+              </p>
+            </div>
+          </div>
+          
+          {deletedArticles.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Deleted Articles</h3>
+              <p className="text-gray-600">
+                Deleted articles will appear here. You can restore them or delete them permanently.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {deletedArticles.map(article => (
+                <div key={article.id} className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium text-red-600 bg-red-100">
+                          🗑️ Deleted
+                        </span>
+                        <span className="text-xs text-gray-500">{article.source}</span>
+                        <span className="text-xs text-gray-500">•</span>
+                        <span className="text-xs text-gray-500">{article.scrapedDate}</span>
+                        {article.deleted_at && (
+                          <>
+                            <span className="text-xs text-gray-500">•</span>
+                            <span className="text-xs text-gray-500">
+                              Deleted: {new Date(article.deleted_at).toLocaleDateString()}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {article.displayTitle || article.aiTitle || article.originalTitle}
+                      </h3>
+                      
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-gray-600">Topic: <span className="font-medium">{article.topic}</span></span>
+                        <span className="text-gray-600">Priority: <span className={`font-medium ${article.priority === 'high' ? 'text-red-600' : article.priority === 'medium' ? 'text-orange-600' : 'text-gray-900'}`}>{article.priority}</span></span>
+                        <span className="text-gray-600">Score: <span className="font-medium">{article.relevanceScore}</span></span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-3 mt-3">
+                    <div className="flex gap-2 flex-wrap">
+                      <button 
+                        onClick={() => handleRestoreArticle(article.id)}
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center gap-1"
+                      >
+                        ♻️ Restore Article
+                      </button>
+                      <button 
+                        onClick={() => handlePermanentDelete(article.id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm flex items-center gap-1"
+                      >
+                        💀 Delete Permanently
+                      </button>
+                      <a 
+                        href={article.originalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        View Original
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b">
@@ -2308,6 +2490,16 @@ export default function AAVMDashboard() {
           </button>
           <button 
             className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'deleted' 
+                ? 'text-blue-600 border-blue-600' 
+                : 'text-gray-600 border-transparent hover:text-gray-900'
+            }`}
+            onClick={() => setActiveTab('deleted')}
+          >
+            Deleted Articles ({articles.filter(a => a.status === 'deleted').length})
+          </button>
+          <button 
+            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'analytics' 
                 ? 'text-blue-600 border-blue-600' 
                 : 'text-gray-600 border-transparent hover:text-gray-900'
@@ -2331,6 +2523,7 @@ export default function AAVMDashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         {activeTab === 'pipeline' && <ArticlePipeline />}
+        {activeTab === 'deleted' && <DeletedArticles />}
         {activeTab === 'analytics' && <Analytics />}
         {activeTab === 'settings' && (
           <div className="text-center py-12">
