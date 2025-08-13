@@ -179,8 +179,8 @@ function updateInFile(articleId, updates) {
   };
 }
 
-// Dynamic visual storytelling prompt generation - no fixed categories
-function generateNewsImagePrompt(title, content) {
+// Two-step prompt generation: OpenAI analyzes, Stability AI generates
+async function generateNewsImagePrompt(title, content) {
   // Remove real person names to avoid content policy issues
   let safeTitle = title
     .replace(/Trump/gi, 'government official')
@@ -190,211 +190,142 @@ function generateNewsImagePrompt(title, content) {
 
   const text = `${safeTitle} ${content}`.toLowerCase();
   
-  // Extract the emotional and visual essence dynamically
-  const visualEssence = extractVisualEssence(text, safeTitle);
+  console.log('🎨 Step 1: Analyzing story with OpenAI for:', safeTitle.substring(0, 50) + '...');
   
-  // Create compelling visual prompt
-  const prompt = `Professional news photography: ${visualEssence}, institutional architecture, no people, no text, photorealistic documentary style, professional lighting.`;
-
-  console.log('🎨 Generated dynamic prompt for:', safeTitle.substring(0, 50) + '...');
-  console.log('🎨 Visual essence:', visualEssence);
-  console.log('🎨 Prompt length:', prompt.length, 'characters');
-  
-  return prompt;
-}
-
-function extractVisualEssence(text, title) {
-  // What emotions/tensions are in this story?
-  const emotions = detectEmotions(text);
-  const contrasts = detectContrasts(text);
-  const settings = detectSettings(text);
-  const lighting = determineLighting(emotions, text);
-  
-  // Build visual description from story elements
-  return buildVisualDescription(emotions, contrasts, settings, lighting, text);
-}
-
-function detectEmotions(text) {
-  let emotions = [];
-  
-  // Urgency/Crisis emotions
-  if (text.includes('crisis') || text.includes('emergency') || text.includes('urgent') || 
-      text.includes('outbreak') || text.includes('threat') || text.includes('danger')) {
-    emotions.push('urgent');
-  }
-  
-  // Conflict/Tension emotions
-  if (text.includes('conflict') || text.includes('dispute') || text.includes('battle') ||
-      text.includes('versus') || text.includes('against') || text.includes('opposition') ||
-      text.includes('takeover') || text.includes('investigation')) {
-    emotions.push('tense');
-  }
-  
-  // Power/Authority emotions
-  if (text.includes('control') || text.includes('power') || text.includes('authority') ||
-      text.includes('enforcement') || text.includes('federal') || text.includes('government')) {
-    emotions.push('authoritative');
-  }
-  
-  // Progress/Innovation emotions
-  if (text.includes('breakthrough') || text.includes('innovation') || text.includes('advancement') ||
-      text.includes('development') || text.includes('research') || text.includes('technology')) {
-    emotions.push('progressive');
-  }
-  
-  return emotions.length > 0 ? emotions : ['neutral'];
-}
-
-function detectContrasts(text) {
-  let contrasts = [];
-  
-  // Economic contrasts
-  if ((text.includes('rich') || text.includes('wealthy') || text.includes('luxury')) &&
-      (text.includes('poor') || text.includes('modest') || text.includes('low-income'))) {
-    contrasts.push('wealth_disparity');
-  }
-  
-  // Power contrasts
-  if ((text.includes('federal') || text.includes('government')) &&
-      (text.includes('local') || text.includes('community') || text.includes('municipal'))) {
-    contrasts.push('federal_vs_local');
-  }
-  
-  // Size/Scale contrasts
-  if ((text.includes('major') || text.includes('massive') || text.includes('large')) &&
-      (text.includes('small') || text.includes('individual') || text.includes('personal'))) {
-    contrasts.push('scale_disparity');
-  }
-  
-  // Old vs New contrasts
-  if ((text.includes('traditional') || text.includes('old') || text.includes('legacy')) &&
-      (text.includes('new') || text.includes('modern') || text.includes('innovative'))) {
-    contrasts.push('traditional_vs_modern');
-  }
-  
-  return contrasts;
-}
-
-function detectSettings(text) {
-  // Dynamic setting detection based on story content
-  let settings = [];
-  
-  // Financial/Economic settings
-  if (text.includes('tax') || text.includes('revenue') || text.includes('economic') || 
-      text.includes('financial') || text.includes('budget') || text.includes('income')) {
-    settings.push('financial_district');
-  }
-  
-  // Medical/Health settings
-  if (text.includes('health') || text.includes('medical') || text.includes('hospital') ||
-      text.includes('disease') || text.includes('virus') || text.includes('treatment')) {
-    settings.push('medical_facility');
-  }
-  
-  // Legal/Justice settings
-  if (text.includes('court') || text.includes('legal') || text.includes('justice') ||
-      text.includes('lawsuit') || text.includes('judge') || text.includes('trial')) {
-    settings.push('courthouse');
-  }
-  
-  // Security/Enforcement settings
-  if (text.includes('police') || text.includes('security') || text.includes('enforcement') ||
-      text.includes('detention') || text.includes('arrest') || text.includes('investigation')) {
-    settings.push('security_facility');
-  }
-  
-  // Educational settings
-  if (text.includes('school') || text.includes('university') || text.includes('education') ||
-      text.includes('student') || text.includes('academic') || text.includes('campus')) {
-    settings.push('educational_institution');
-  }
-  
-  // Default to government/institutional if no specific setting
-  return settings.length > 0 ? settings : ['institutional_building'];
-}
-
-function determineLighting(emotions, text) {
-  // Dynamic lighting based on story tone
-  if (emotions.includes('urgent') || text.includes('crisis') || text.includes('emergency')) {
-    return 'dramatic lighting with stark shadows';
-  } else if (emotions.includes('tense') || text.includes('investigation') || text.includes('conflict')) {
-    return 'moody lighting with strong contrast';
-  } else if (emotions.includes('progressive') || text.includes('breakthrough') || text.includes('innovation')) {
-    return 'bright modern lighting with clean lines';
-  } else if (text.includes('evening') || text.includes('night') || emotions.includes('authoritative')) {
-    return 'golden hour lighting with imposing shadows';
-  } else {
-    return 'professional architectural lighting';
-  }
-}
-
-function buildVisualDescription(emotions, contrasts, settings, lighting, text) {
-  // Start with primary setting
-  let description = '';
-  
-  // Handle contrasts first - they're most visually compelling
-  if (contrasts.includes('wealth_disparity')) {
-    description = 'luxury high-rise towers overlooking modest residential buildings with stark architectural contrast';
-  } else if (contrasts.includes('federal_vs_local')) {
-    description = 'imposing federal building dominating smaller municipal structures in urban landscape';
-  } else if (contrasts.includes('scale_disparity')) {
-    description = 'massive institutional complex with individual human-scale elements in foreground';
-  } else if (contrasts.includes('traditional_vs_modern')) {
-    description = 'sleek contemporary architecture alongside classical institutional buildings';
-  }
-  
-  // If no contrasts, build from settings and emotions
-  else {
-    const primarySetting = settings[0] || 'institutional_building';
+  try {
+    // Step 1: Let OpenAI analyze the story and suggest visual concepts
+    const visualDescription = await generateVisualDescriptionWithAI(safeTitle, content);
     
-    switch(primarySetting) {
-      case 'financial_district':
-        if (emotions.includes('urgent')) {
-          description = 'wall street financial towers at dramatic sunset with imposing glass facades';
-        } else {
-          description = 'sleek banking headquarters with modern glass architecture and urban sophistication';
-        }
-        break;
-        
-      case 'medical_facility':
-        if (emotions.includes('urgent')) {
-          description = 'high-tech medical facility with sterile white surfaces and emergency lighting';
-        } else {
-          description = 'cutting-edge healthcare center with clean modern architecture and clinical precision';
-        }
-        break;
-        
-      case 'courthouse':
-        if (emotions.includes('tense')) {
-          description = 'imposing courthouse with marble columns and dramatic shadows on stone steps';
-        } else {
-          description = 'stately judicial building with classical architecture and formal stone facade';
-        }
-        break;
-        
-      case 'security_facility':
-        if (emotions.includes('authoritative')) {
-          description = 'fortress-like government building with controlled access and imposing concrete architecture';
-        } else {
-          description = 'modern law enforcement facility with secure institutional design';
-        }
-        break;
-        
-      case 'educational_institution':
-        if (emotions.includes('tense')) {
-          description = 'university administration building with formal academic architecture under stormy skies';
-        } else {
-          description = 'prestigious academic campus with collegiate architecture and scholarly atmosphere';
-        }
-        break;
-        
-      default:
-        description = 'contemporary institutional building with authoritative architecture';
-    }
+    // Step 2: Create final Stability AI prompt
+    const prompt = `Professional news photography: ${visualDescription}, photorealistic documentary style, professional lighting, no people, no text, no words, no signage, high quality news media image.`;
+    
+    console.log('🎨 Step 2: Final visual description:', visualDescription);
+    console.log('🎨 Final prompt length:', prompt.length, 'characters');
+    
+    return prompt;
+    
+  } catch (error) {
+    console.error('❌ OpenAI visual analysis failed, using fallback:', error);
+    // Fallback to simple description if OpenAI fails
+    const fallbackPrompt = `Professional news photography: modern institutional building related to the story, photorealistic documentary style, professional lighting, no people, no text, no words, no signage.`;
+    return fallbackPrompt;
   }
+}
+
+async function generateVisualDescriptionWithAI(title, content) {
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   
-  // Add lighting to enhance mood
-  return `${description}, ${lighting}`;
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const analysisPrompt = `You are a visual director for a news media company. Your job is to create compelling visual concepts for news images based on article content.
+
+Read this news article and create a visual description for a news photograph that would be engaging, relevant, and appropriate for the story:
+
+TITLE: ${title}
+CONTENT: ${content}
+
+Create a visual description that:
+- Captures the essence and mood of the story
+- Is visually interesting and engaging (not boring generic buildings)
+- Shows relevant environments, architecture, or settings
+- Conveys the right emotional tone (urgent, serious, professional, etc.)
+- Avoids showing specific people or recognizable locations
+- Would work well as a news image accompaniment
+
+Examples of good visual descriptions:
+- "Industrial steel manufacturing facility with dramatic lighting and heavy machinery"
+- "Luxury downtown financial district contrasted with modest residential neighborhood"
+- "High-tech medical laboratory with sterile surfaces and advanced equipment"
+- "University campus with formal academic architecture under stormy dramatic skies"
+
+Respond with ONLY a concise visual description (1-2 sentences max) that would make an engaging news photograph:`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a visual director who creates compelling, relevant visual concepts for news photography. Focus on environments and settings that tell the story visually. Keep descriptions concise and engaging.'
+        },
+        {
+          role: 'user',
+          content: analysisPrompt
+        }
+      ],
+      max_tokens: 100,
+      temperature: 0.7,
+      top_p: 1,
+      frequency_penalty: 0.2,
+      presence_penalty: 0.2
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const description = data.choices?.[0]?.message?.content?.trim();
+  
+  if (!description) {
+    throw new Error('No visual description returned from OpenAI');
+  }
+
+  return description;
+}
+
+// Optimized Stability AI function for your existing code
+async function generateStabilityImage(prompt, apiKey) {
+  console.log('🎨 Calling Stability AI with prompt:', prompt.substring(0, 100) + '...');
+  
+  // Enhanced prompt for news photography
+  const stabilityPrompt = `${prompt}, professional photography, high quality, detailed, realistic, 4k resolution, documentary style, clean composition, news media quality`;
+
+  const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      text_prompts: [{ text: stabilityPrompt, weight: 1 }],
+      cfg_scale: 7,          // Good balance of creativity vs prompt adherence
+      height: 1024,
+      width: 1024,
+      samples: 1,
+      steps: 30,             // Good quality vs speed balance
+      seed: 0,               // Random seed for variety
+      style_preset: "photographic", // Perfect for news images
+    }),
+  });
+
+  console.log('🎨 Stability AI response status:', response.status);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ Stability AI error:', errorText);
+    throw new Error(`Stability AI error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  
+  if (!data.artifacts || !data.artifacts[0]) {
+    throw new Error('No image returned from Stability AI');
+  }
+
+  const imageUrl = `data:image/png;base64,${data.artifacts[0].base64}`;
+  console.log('✅ Stability AI image generated successfully');
+  
+  return { success: true, imageUrl };
 }
 
 // SINGLE GET FUNCTION - handles both API status and dashboard data
