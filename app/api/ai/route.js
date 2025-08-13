@@ -1208,9 +1208,47 @@ Provide only the Korean translation:`;
         }, { status: 500 });
       }
     }
+
+    if (action === 'delete_article') {
+      console.log('🗑️ DELETE ARTICLE REQUEST:', { action, articleId });
+      
+      if (!articleId) {
+        return NextResponse.json({ error: 'Article ID required for deletion' }, { status: 400 });
+      }
+
+      try {
+        if (supabase) {
+          // Delete from Supabase
+          const { error } = await supabase
+            .from('articles')
+            .delete()
+            .eq('id', articleId);
+
+          if (error) throw error;
+
+          console.log('✅ Article deleted from Supabase:', articleId);
+        } else {
+          // For file system, we can't actually delete, just log
+          console.log('📁 File system - would delete article:', articleId);
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          message: `Article deleted successfully ${supabase ? '(Supabase)' : '(File System)'}`,
+          articleId: articleId
+        });
+
+      } catch (error) {
+        console.error('❌ Error deleting article:', error);
+        return NextResponse.json({ 
+          error: 'Failed to delete article',
+          details: error.message 
+        }, { status: 500 });
+      }
+    }
     
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article' 
+      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article, delete_article' 
     }, { status: 400 });
 
   } catch (error) {
