@@ -24,6 +24,7 @@ export default function AAVMDashboard() {
   // Filter and sort states
   const [filters, setFilters] = useState({
     status: 'all',
+    statusGroup: 'all',
     topic: 'all',
     priority: 'all',
     relevanceMin: 0,
@@ -75,6 +76,17 @@ export default function AAVMDashboard() {
       // Exclude both deleted and discarded articles from main pipeline
       if (article.status === 'discarded' || article.status === 'deleted') return false;
       
+      // Status group filtering
+      if (filters.statusGroup !== 'all') {
+        const statusGroups = {
+          'unreviewed': ['pending_synthesis'],
+          'in_process': ['generating_title', 'title_review', 'generating_summary', 'summary_review', 'ready_for_translation', 'in_translation', 'translation_review', 'ready_for_image', 'generating_image', 'ready_for_publication'],
+          'published': ['published']
+        };
+        if (!statusGroups[filters.statusGroup]?.includes(article.status)) return false;
+      }
+      
+      // Detailed status filtering
       if (filters.status !== 'all' && article.status !== filters.status) return false;
       if (filters.topic !== 'all' && article.topic !== filters.topic) return false;
       if (filters.priority !== 'all' && article.priority !== filters.priority) return false;
@@ -1465,9 +1477,24 @@ export default function AAVMDashboard() {
             )}
           </div>
 
-          {/* Status Filter */}
+          {/* Status Group Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status Group</label>
+            <select
+              value={filters.statusGroup || 'all'}
+              onChange={(e) => setFilters(prev => ({ ...prev, statusGroup: e.target.value, status: 'all' }))}
+              className="w-full p-2 border border-gray-300 rounded text-sm"
+            >
+              <option value="all">All Groups</option>
+              <option value="unreviewed">📥 Unreviewed</option>
+              <option value="in_process">⚙️ In Process</option>
+              <option value="published">✅ Published</option>
+            </select>
+          </div>
+          
+          {/* Detailed Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Detailed Status</label>
             <select
               value={filters.status}
               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
@@ -1586,6 +1613,7 @@ export default function AAVMDashboard() {
               onClick={() => {
                 setFilters({
                   status: 'all',
+                  statusGroup: 'all',
                   topic: 'all',
                   priority: 'all',
                   relevanceMin: 0,
