@@ -1438,7 +1438,12 @@ export default function AAVMDashboard() {
               id="filter-search-input"
               type="text"
               defaultValue={filters.keyword}
-              onInput={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+              onBlur={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setFilters(prev => ({ ...prev, keyword: e.target.value }));
+                }
+              }}
               className="w-full p-2 border border-gray-300 rounded text-sm"
               placeholder="Search titles, content, author, translations..."
             />
@@ -1612,7 +1617,12 @@ export default function AAVMDashboard() {
                 id="header-search-input"
                 type="text"
                 defaultValue={filters.keyword}
-                onInput={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                onBlur={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setFilters(prev => ({ ...prev, keyword: e.target.value }));
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
                 placeholder="Search articles..."
               />
