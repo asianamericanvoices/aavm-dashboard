@@ -1289,52 +1289,25 @@ export default function AAVMDashboard() {
     ));
 
     try {
-      // Search with custom terms directly - no backend processing
-      const allPhotos = [];
-      
-      for (const term of customTerms.slice(0, 4)) { // Limit to 4 terms
-        console.log('🔍 Searching for term:', term);
-        
-        // Search Unsplash
-        try {
-          const unsplashResponse = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(term)}&per_page=3&orientation=landscape`, {
-            headers: {
-              'Authorization': `Client-ID ${process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || 'demo_key'}`,
-            },
-          });
-          
-          if (unsplashResponse.ok) {
-            const unsplashData = await unsplashResponse.json();
-            const unsplashPhotos = unsplashData.results.map(photo => ({
-              id: photo.id,
-              url: photo.urls.regular,
-              thumb: photo.urls.thumb,
-              description: photo.description || photo.alt_description || 'Stock photo',
-              photographer: photo.user.name,
-              photographerUrl: photo.user.links.html,
-              downloadUrl: photo.links.download_location,
-              source: 'unsplash'
-            }));
-            allPhotos.push(...unsplashPhotos);
-          }
-        } catch (error) {
-          console.log('Unsplash search failed for term:', term);
-        }
-      }
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'search_stock_photos_direct',
+          searchTerms: customTerms,
+          articleId: articleId
+        }),
+      });
 
-      // Remove duplicates
-      const uniquePhotos = allPhotos.filter((photo, index, self) => 
-        index === self.findIndex(p => p.id === photo.id && p.source === photo.source)
-      ).slice(0, 12);
-
-      console.log('📸 Found photos with custom terms:', uniquePhotos.length);
+      if (!response.ok) throw new Error('Failed to search with custom terms');
+      const data = await response.json();
 
       setArticles(prev => prev.map(a => 
         a.id === articleId 
           ? { 
               ...a, 
               searchingStockPhotos: false,
-              stockPhotos: uniquePhotos,
+              stockPhotos: data.photos,
               showStockPhotoSelector: true,
               searchTerms: customTerms
             }
