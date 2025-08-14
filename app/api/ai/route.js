@@ -337,35 +337,61 @@ async function searchPexelsPhotos(query, count = 6) {
 
 // Generate search terms for stock photos
 function generateStockPhotoSearchTerms(title, topic, content = '') {
+  const searchTerms = [];
+  
+  // Analyze the title for key concepts
+  const titleWords = title.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3)
+    .filter(word => !['this', 'that', 'with', 'from', 'they', 'have', 'will', 'been', 'said', 'says', 'after', 'over', 'more', 'than', 'about', 'would', 'could', 'should'].includes(word));
+
+  // Extract key phrases from content
+  const contentKeywords = [];
+  if (content) {
+    const sentences = content.split(/[.!?]+/).slice(0, 3); // First 3 sentences
+    const keyPhrases = sentences.join(' ').toLowerCase()
+      .match(/\b(?:artificial intelligence|climate change|healthcare|education|immigration|technology|research|university|hospital|government|economy|business|community|students|patients|workers|families|children|housing|environment|energy|transportation|infrastructure|democracy|voting|rights|justice|safety|security|innovation|development|growth|investment|policy|legislation|funding|program|initiative|project|study|report|analysis|data|statistics|survey|poll|election|campaign|candidate|president|congress|senate|house|governor|mayor|city|state|federal|national|international|global|local|regional|public|private|nonprofit|organization|association|foundation|institute|center|department|agency|bureau|office|committee|commission|board|council|group|team|partnership|collaboration|cooperation|alliance|coalition|network|platform|system|service|solution|strategy|plan|proposal|recommendation|suggestion|advice|guidance|support|assistance|help|aid|relief|benefit|advantage|opportunity|challenge|problem|issue|concern|risk|threat|danger|crisis|emergency|disaster|tragedy|accident|incident|event|situation|circumstance|condition|status|state|position|role|responsibility|duty|obligation|commitment|promise|pledge|vow|oath|agreement|contract|deal|settlement|resolution|decision|choice|option|alternative|possibility|potential|prospect|future|outlook|vision|goal|objective|target|aim|purpose|mission|value|principle|belief|idea|concept|theory|hypothesis|assumption|conclusion|finding|result|outcome|effect|impact|influence|consequence|implication|significance|importance|relevance|meaning|definition|explanation|description|detail|fact|truth|reality|evidence|proof|confirmation|verification|validation|authentication|certification|approval|authorization|permission|license|permit|registration|enrollment|admission|acceptance|rejection|denial|refusal|opposition|resistance|protest|demonstration|rally|march|gathering|meeting|conference|summit|forum|discussion|debate|dialogue|conversation|interview|speech|address|presentation|lecture|seminar|workshop|training|education|learning|teaching|instruction|guidance|mentoring|coaching|supervision|management|leadership|governance|administration|operation|execution|implementation|application|practice|procedure|process|method|approach|technique|strategy|tactic|plan|program|project|initiative|campaign|effort|attempt|try|endeavor|undertaking|venture|enterprise|business|company|corporation|firm|organization|institution|establishment|facility|center|office|building|structure|construction|development|renovation|expansion|improvement|upgrade|modernization|transformation|change|reform|revolution|evolution|progress|advancement|growth|increase|rise|boost|surge|jump|leap|breakthrough|achievement|success|victory|triumph|win|gain|profit|benefit|advantage|opportunity|chance|possibility|potential|prospect|hope|optimism|confidence|faith|trust|belief|support|backing|endorsement|approval|praise|recognition|acknowledgment|appreciation|gratitude|thanks|credit|honor|award|prize|reward|compensation|payment|salary|wage|income|revenue|earnings|profit|budget|cost|expense|investment|funding|grant|donation|contribution|gift|charity|philanthropy|generosity|kindness|compassion|empathy|sympathy|understanding|tolerance|acceptance|inclusion|diversity|equality|equity|fairness|justice|rights|freedom|liberty|democracy|peace|harmony|unity|cooperation|collaboration|partnership|alliance|friendship|relationship|connection|bond|tie|link|association|affiliation|membership|participation|involvement|engagement|commitment|dedication|devotion|loyalty|allegiance|patriotism|nationalism|citizenship|identity|heritage|culture|tradition|custom|practice|ritual|ceremony|celebration|festival|holiday|vacation|travel|tourism|recreation|entertainment|leisure|fun|enjoyment|pleasure|happiness|joy|delight|satisfaction|contentment|fulfillment|achievement|success|prosperity|wealth|fortune|luck|chance|fate|destiny|future|tomorrow|next|upcoming|coming|approaching|imminent|pending|waiting|expected|anticipated|predicted|forecasted|projected|estimated|calculated|measured|assessed|evaluated|analyzed|studied|researched|investigated|examined|reviewed|inspected|checked|tested|verified|confirmed|validated|authenticated|certified|approved|authorized|licensed|permitted|registered|enrolled|admitted|accepted|welcomed|embraced|adopted|chosen|selected|picked|preferred|favored|recommended|suggested|advised|guided|directed|instructed|taught|educated|trained|prepared|equipped|armed|ready|set|poised|positioned|placed|located|situated|based|established|founded|created|formed|built|constructed|developed|designed|planned|organized|arranged|structured|formatted|shaped|molded|crafted|made|produced|manufactured|generated|created|invented|discovered|found|identified|recognized|spotted|noticed|observed|seen|witnessed|experienced|felt|sensed|perceived|understood|comprehended|grasped|learned|realized|acknowledged|admitted|accepted|agreed|consented|approved|endorsed|supported|backed|encouraged|promoted|advocated|championed|defended|protected|safeguarded|secured|preserved|maintained|sustained|continued|persisted|endured|lasted|survived|thrived|flourished|prospered|succeeded|achieved|accomplished|completed|finished|concluded|ended|stopped|ceased|terminated|closed|shut|sealed|locked|secured|protected|defended|guarded|watched|monitored|supervised|controlled|managed|directed|led|guided|steered|navigated|piloted|driven|operated|run|administered|governed|ruled|commanded|ordered|instructed|told|asked|requested|demanded|required|needed|wanted|desired|wished|hoped|expected|anticipated|predicted|forecasted|projected|estimated|calculated|measured|assessed|evaluated|analyzed|studied|researched|investigated|examined|reviewed|inspected|checked|tested|verified|confirmed|validated|authenticated|certified|approved|authorized|licensed|permitted|registered|enrolled|admitted|accepted)\b/g) || [];
+    
+    contentKeywords.push(...keyPhrases);
+  }
+
+  // Topic-specific terms
   const topicTerms = {
-    'Politics': ['government', 'capitol building', 'politics', 'democracy', 'voting'],
-    'Healthcare': ['healthcare', 'medical', 'hospital', 'health', 'medicine'],
-    'Education': ['education', 'university', 'school', 'learning', 'students'],
-    'Immigration': ['immigration', 'diversity', 'community', 'people', 'multicultural'],
-    'Economy': ['business', 'economy', 'finance', 'money', 'economic'],
-    'Culture': ['culture', 'community', 'celebration', 'diversity', 'people'],
-    'General': ['news', 'current events', 'society', 'community']
+    'Politics': ['government', 'politics', 'democracy', 'voting', 'capitol building', 'congress', 'senate', 'election', 'policy'],
+    'Healthcare': ['healthcare', 'medical', 'hospital', 'health', 'medicine', 'doctor', 'patient', 'treatment', 'research'],
+    'Education': ['education', 'university', 'school', 'learning', 'students', 'teacher', 'classroom', 'graduation', 'campus'],
+    'Immigration': ['immigration', 'diversity', 'community', 'multicultural', 'citizenship', 'border', 'visa', 'refugee'],
+    'Economy': ['business', 'economy', 'finance', 'money', 'economic', 'market', 'investment', 'growth', 'jobs'],
+    'Culture': ['culture', 'community', 'celebration', 'diversity', 'people', 'festival', 'tradition', 'heritage'],
+    'General': ['news', 'current events', 'society', 'community', 'people', 'america', 'united states']
   };
 
-  let searchTerms = topicTerms[topic] || topicTerms['General'];
-  
-  const asianAmericanTerms = [
-    'asian american',
-    'diverse community',
-    'multicultural',
-    'asian heritage',
-    'community diversity'
-  ];
-  
+  // Start with topic-specific terms
+  searchTerms.push(...(topicTerms[topic] || topicTerms['General']).slice(0, 3));
+
+  // Add title-based terms
+  searchTerms.push(...titleWords.slice(0, 3));
+
+  // Add content-based terms
+  searchTerms.push(...contentKeywords.slice(0, 2));
+
+  // Asian American context terms
+  const asianAmericanTerms = ['asian american', 'diverse community', 'multicultural', 'asian heritage'];
   const titleLower = title.toLowerCase();
   const contentLower = content.toLowerCase();
   
   if (titleLower.includes('asian') || titleLower.includes('chinese') || 
       titleLower.includes('korean') || contentLower.includes('asian american')) {
-    searchTerms = [...asianAmericanTerms, ...searchTerms];
+    searchTerms.unshift(...asianAmericanTerms.slice(0, 2));
   }
 
-  return searchTerms;
+  // Remove duplicates and clean up
+  const uniqueTerms = [...new Set(searchTerms)]
+    .filter(term => term && term.length > 2)
+    .slice(0, 8); // Limit to 8 terms
+
+  return uniqueTerms;
 }
 
 // Main stock photo search function
