@@ -1196,6 +1196,88 @@ export default function AAVMDashboard() {
     }
   };
 
+  // Stock Photo Handlers - Add after existing handlers
+  const handleSearchStockPhotos = async (articleId) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, searchingStockPhotos: true }
+        : a
+    ));
+
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'search_stock_photos',
+          title: article.displayTitle || article.aiTitle || article.originalTitle,
+          topic: article.topic,
+          content: article.fullContent,
+          articleId: articleId
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to search stock photos');
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              searchingStockPhotos: false,
+              stockPhotos: data.photos,
+              showStockPhotoSelector: true,
+              searchTerms: data.searchTerms
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error searching stock photos:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId ? { ...a, searchingStockPhotos: false, stockPhotos: [] } : a
+      ));
+      alert('Failed to search stock photos. Please try again.');
+    }
+  };
+
+  const handleSelectStockPhoto = async (articleId, photo) => {
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'select_stock_photo',
+          articleId: articleId,
+          photoUrl: photo.url,
+          photoData: photo
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to select stock photo');
+      const data = await response.json();
+      
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              imageUrl: data.imageUrl,
+              imageGenerated: false,
+              imageSource: 'stock',
+              imageAttribution: data.attribution,
+              showStockPhotoSelector: false,
+              status: 'ready_for_publication'
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error selecting stock photo:', error);
+      alert('Failed to select stock photo. Please try again.');
+    }
+  };
+  
   const getTopicCounts = () => {
     const counts = {};
     articles.forEach(article => {
@@ -1751,13 +1833,75 @@ export default function AAVMDashboard() {
                     </div>
                   )}
 
+                  {/* Stock Photo Selector - Add this section */}
+                  {article.showStockPhotoSelector && (
+                    <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-blue-900">📸 Choose a Stock Photo</h4>
+                        <button 
+                          onClick={() => setArticles(prev => prev.map(a => 
+                            a.id === article.id ? {...a, showStockPhotoSelector: false} : a
+                          ))}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      
+                      {article.searchTerms && (
+                        <div className="text-sm text-blue-700 mb-3">
+                          <strong>Search terms:</strong> {article.searchTerms.join(', ')}
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                        {article.stockPhotos?.map((photo, index) => (
+                          <div key={`${photo.source}-${photo.id}`} className="relative group cursor-pointer">
+                            <img 
+                              src={photo.thumb || photo.url}
+                              alt={photo.description}
+                              className="w-full h-24 object-cover rounded border hover:border-blue-500"
+                              onClick={() => handleSelectStockPhoto(article.id, photo)}
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="truncate">{photo.photographer}</div>
+                              <div className="text-gray-300">{photo.source}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {(!article.stockPhotos || article.stockPhotos.length === 0) && (
+                        <div className="text-center py-4 text-blue-600">
+                          No stock photos found. Try the AI image generator instead.
+                        </div>
+                      )}
+                    </div>
+                  )}
+        
+                  {/* Enhanced image display with attribution */}
                   {article.imageUrl && (
                     <div className="mb-4">
                       <img 
                         src={article.imageUrl} 
-                        alt={`Generated image for: ${article.displayTitle || article.aiTitle || article.originalTitle}`}
+                        alt={`Image for: ${article.displayTitle || article.aiTitle || article.originalTitle}`}
                         className="w-full max-w-md mx-auto rounded-lg shadow-md"
                       />
+                      {article.imageAttribution && (
+                        <div className="text-xs text-gray-500 mt-1 text-center">
+                          Photo by{' '}
+                          <a 
+                            href={article.imageAttribution.photographerUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {article.imageAttribution.photographer}
+                          </a>
+                          {' '}on{' '}
+                          <span className="capitalize">{article.imageAttribution.source}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -2210,13 +2354,22 @@ export default function AAVMDashboard() {
                   )}
 
                   {article.status === 'ready_for_image' && (
-                    <button 
-                      onClick={() => handleGenerateImagePrompt(article.id)}
-                      disabled={article.generatingPrompt}
-                      className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm disabled:bg-gray-400"
-                    >
-                      {article.generatingPrompt ? 'Generating Prompt...' : 'Generate Image Prompt'}
-                    </button>
+                    <>
+                      <button 
+                        onClick={() => handleSearchStockPhotos(article.id)}
+                        disabled={article.searchingStockPhotos}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm"
+                      >
+                        {article.searchingStockPhotos ? 'Searching...' : '📸 Find Stock Photos'}
+                      </button>
+                      <button 
+                        onClick={() => handleGenerateImagePrompt(article.id)}
+                        disabled={article.generatingPrompt}
+                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-400 text-sm"
+                      >
+                        {article.generatingPrompt ? 'Generating Prompt...' : '🎨 Generate AI Image'}
+                      </button>
+                    </>
                   )}
                   {article.status === 'generating_image' && (
                     <button 
