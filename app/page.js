@@ -1434,19 +1434,30 @@ export default function AAVMDashboard() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               🔍 Search Articles
             </label>
-            <input
-              id="filter-search-input"
-              type="text"
-              defaultValue={filters.keyword}
-              onBlur={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setFilters(prev => ({ ...prev, keyword: e.target.value }));
-                }
-              }}
-              className="w-full p-2 border border-gray-300 rounded text-sm"
-              placeholder="Search titles, content, author, translations..."
-            />
+            <div className="flex">
+              <input
+                id="filter-search-input"
+                type="text"
+                defaultValue={filters.keyword}
+                onBlur={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setFilters(prev => ({ ...prev, keyword: e.target.value }));
+                  }
+                }}
+                className="flex-1 p-2 border border-gray-300 rounded-l text-sm"
+                placeholder="Search titles, content, author, translations..."
+              />
+              <button
+                onClick={() => {
+                  const input = document.getElementById('filter-search-input');
+                  setFilters(prev => ({ ...prev, keyword: input.value }));
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-r hover:bg-blue-700 border border-l-0 border-blue-600 hover:border-blue-700 text-sm font-medium"
+              >
+                Search
+              </button>
+            </div>
             {filters.keyword && (
               <div className="mt-1 text-xs text-gray-500">
                 Found {filteredArticles.length} articles containing "{filters.keyword}"
@@ -1612,25 +1623,36 @@ export default function AAVMDashboard() {
           
           {/* Quick Search */}
           <div className="flex-1 max-w-md mx-4">
-            <div className="relative">
-              <input
-                id="header-search-input"
-                type="text"
-                defaultValue={filters.keyword}
-                onBlur={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setFilters(prev => ({ ...prev, keyword: e.target.value }));
-                  }
-                }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
-                placeholder="Search articles..."
-              />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+            <div className="relative flex">
+              <div className="relative flex-1">
+                <input
+                  id="header-search-input"
+                  type="text"
+                  defaultValue={filters.keyword}
+                  onBlur={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setFilters(prev => ({ ...prev, keyword: e.target.value }));
+                    }
+                  }}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-l-lg text-sm"
+                  placeholder="Search articles..."
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
               </div>
+              <button
+                onClick={() => {
+                  const input = document.getElementById('header-search-input');
+                  setFilters(prev => ({ ...prev, keyword: input.value }));
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 border border-l-0 border-blue-600 hover:border-blue-700 text-sm font-medium"
+              >
+                Search
+              </button>
             </div>
           </div>
 
