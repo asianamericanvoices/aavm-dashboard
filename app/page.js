@@ -1277,6 +1277,63 @@ export default function AAVMDashboard() {
       alert('Failed to select stock photo. Please try again.');
     }
   };
+
+  const handleSearchStockPhotosWithTerms = async (articleId, customTerms) => {
+    const article = articles.find(a => a.id === articleId);
+    if (!article) return;
+
+    setArticles(prev => prev.map(a => 
+      a.id === articleId 
+        ? { ...a, searchingStockPhotos: true, editingSearchTerms: false }
+        : a
+    ));
+
+    try {
+      // Search each term individually and combine results
+      const allPhotos = [];
+      for (const term of customTerms.slice(0, 5)) { // Limit to 5 terms
+        const response = await fetch(window.location.origin + '/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'search_stock_photos',
+            title: term, // Use the custom term as the title
+            topic: 'General',
+            content: '',
+            articleId: articleId
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          allPhotos.push(...(data.photos || []));
+        }
+      }
+
+      // Remove duplicates and limit results
+      const uniquePhotos = allPhotos.filter((photo, index, self) => 
+        index === self.findIndex(p => p.id === photo.id && p.source === photo.source)
+      ).slice(0, 12);
+
+      setArticles(prev => prev.map(a => 
+        a.id === articleId 
+          ? { 
+              ...a, 
+              searchingStockPhotos: false,
+              stockPhotos: uniquePhotos,
+              showStockPhotoSelector: true,
+              searchTerms: customTerms
+            }
+          : a
+      ));
+    } catch (error) {
+      console.error('Error searching with custom terms:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === articleId ? { ...a, searchingStockPhotos: false } : a
+      ));
+      alert('Failed to search with custom terms. Please try again.');
+    }
+  };
   
   const getTopicCounts = () => {
     const counts = {};
@@ -1849,8 +1906,44 @@ export default function AAVMDashboard() {
                       </div>
                       
                       {article.searchTerms && (
-                        <div className="text-sm text-blue-700 mb-3">
-                          <strong>Search terms:</strong> {article.searchTerms.join(', ')}
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-medium text-blue-900">Search Terms:</label>
+                            <button
+                              onClick={() => setArticles(prev => prev.map(a => 
+                                a.id === article.id ? {...a, editingSearchTerms: !a.editingSearchTerms} : a
+                              ))}
+                              className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              {article.editingSearchTerms ? 'Cancel' : 'Edit'}
+                            </button>
+                          </div>
+                          
+                          {article.editingSearchTerms ? (
+                            <div>
+                              <input
+                                id={`search-terms-${article.id}`}
+                                type="text"
+                                defaultValue={article.searchTerms.join(', ')}
+                                className="w-full p-2 border border-blue-200 rounded text-sm"
+                                placeholder="Enter search terms separated by commas"
+                              />
+                              <button
+                                onClick={() => {
+                                  const input = document.getElementById(`search-terms-${article.id}`);
+                                  const newTerms = input.value.split(',').map(term => term.trim()).filter(term => term);
+                                  handleSearchStockPhotosWithTerms(article.id, newTerms);
+                                }}
+                                className="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                              >
+                                Search with New Terms
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-blue-700">
+                              {article.searchTerms.join(', ')}
+                            </div>
+                          )}
                         </div>
                       )}
                       
