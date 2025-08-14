@@ -1289,31 +1289,45 @@ export default function AAVMDashboard() {
     ));
 
     try {
-      // Search each term individually and combine results
+      // Search with custom terms directly - no backend processing
       const allPhotos = [];
-      for (const term of customTerms.slice(0, 5)) { // Limit to 5 terms
-        const response = await fetch(window.location.origin + '/api/ai', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'search_stock_photos',
-            title: term, // Use the custom term as the title
-            topic: 'General',
-            content: '',
-            articleId: articleId
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          allPhotos.push(...(data.photos || []));
+      
+      for (const term of customTerms.slice(0, 4)) { // Limit to 4 terms
+        console.log('🔍 Searching for term:', term);
+        
+        // Search Unsplash
+        try {
+          const unsplashResponse = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(term)}&per_page=3&orientation=landscape`, {
+            headers: {
+              'Authorization': `Client-ID ${process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || 'demo_key'}`,
+            },
+          });
+          
+          if (unsplashResponse.ok) {
+            const unsplashData = await unsplashResponse.json();
+            const unsplashPhotos = unsplashData.results.map(photo => ({
+              id: photo.id,
+              url: photo.urls.regular,
+              thumb: photo.urls.thumb,
+              description: photo.description || photo.alt_description || 'Stock photo',
+              photographer: photo.user.name,
+              photographerUrl: photo.user.links.html,
+              downloadUrl: photo.links.download_location,
+              source: 'unsplash'
+            }));
+            allPhotos.push(...unsplashPhotos);
+          }
+        } catch (error) {
+          console.log('Unsplash search failed for term:', term);
         }
       }
 
-      // Remove duplicates and limit results
+      // Remove duplicates
       const uniquePhotos = allPhotos.filter((photo, index, self) => 
         index === self.findIndex(p => p.id === photo.id && p.source === photo.source)
       ).slice(0, 12);
+
+      console.log('📸 Found photos with custom terms:', uniquePhotos.length);
 
       setArticles(prev => prev.map(a => 
         a.id === articleId 
