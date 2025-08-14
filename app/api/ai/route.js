@@ -1550,6 +1550,58 @@ Provide only the Korean translation:`;
     }
   }
 
+  if (action === 'search_stock_photos_direct') {
+      console.log('📸 Direct stock photo search with custom terms:', body.searchTerms);
+      
+      const { searchTerms } = body;
+      
+      if (!searchTerms || !Array.isArray(searchTerms) || searchTerms.length === 0) {
+        return NextResponse.json({ 
+          error: 'No search terms provided.' 
+        }, { status: 400 });
+      }
+
+      try {
+        const allPhotos = [];
+        
+        for (const term of searchTerms.slice(0, 4)) {
+          console.log('🔍 Searching for term:', term);
+          
+          const [unsplashResult, pexelsResult] = await Promise.all([
+            searchUnsplashPhotos(term, 3),
+            searchPexelsPhotos(term, 3)
+          ]);
+          
+          if (unsplashResult.success) {
+            allPhotos.push(...unsplashResult.photos);
+          }
+          
+          if (pexelsResult.success) {
+            allPhotos.push(...pexelsResult.photos);
+          }
+        }
+        
+        // Remove duplicates and limit results
+        const uniquePhotos = allPhotos.filter((photo, index, self) => 
+          index === self.findIndex(p => p.id === photo.id && p.source === photo.source)
+        ).slice(0, 12);
+        
+        console.log(`📸 Found ${uniquePhotos.length} photos with direct search`);
+        
+        return NextResponse.json({ 
+          success: true,
+          photos: uniquePhotos,
+          searchTerms: searchTerms
+        });
+        
+      } catch (error) {
+        console.error('📸 Direct stock photo search error:', error);
+        return NextResponse.json({ 
+          error: `Direct stock photo search failed: ${error.message}`,
+        }, { status: 500 });
+      }
+    }
+    
   if (action === 'select_stock_photo') {
     console.log('📸 Selecting stock photo for article:', articleId);
     
