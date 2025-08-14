@@ -28,7 +28,8 @@ export default function AAVMDashboard() {
     priority: 'all',
     relevanceMin: 0,
     relevanceMax: 10,
-    source: 'all'
+    source: 'all',
+    keyword: ''
   });
   const [sortBy, setSortBy] = useState('date-desc');
   const [showFilters, setShowFilters] = useState(false);
@@ -79,6 +80,26 @@ export default function AAVMDashboard() {
       if (filters.priority !== 'all' && article.priority !== filters.priority) return false;
       if (filters.source !== 'all' && article.source !== filters.source) return false;
       if (article.relevanceScore < filters.relevanceMin || article.relevanceScore > filters.relevanceMax) return false;
+      
+      // Keyword search across multiple fields
+      if (filters.keyword && filters.keyword.trim().length > 0) {
+        const keyword = filters.keyword.toLowerCase().trim();
+        const searchableText = [
+          article.originalTitle,
+          article.aiTitle,
+          article.displayTitle,
+          article.aiSummary?.replace(/<br>/g, ' '),
+          article.fullContent,
+          article.author,
+          article.source,
+          article.translations?.chinese?.replace(/<br>/g, ' '),
+          article.translations?.korean?.replace(/<br>/g, ' '),
+          article.translatedTitles?.chinese,
+          article.translatedTitles?.korean
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        if (!searchableText.includes(keyword)) return false;
+      }
       
       return true;
     });
@@ -1408,6 +1429,25 @@ export default function AAVMDashboard() {
       
       {showFilters && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Keyword Search */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              🔍 Search Articles
+            </label>
+            <input
+              type="text"
+              value={filters.keyword}
+              onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+              className="w-full p-2 border border-gray-300 rounded text-sm"
+              placeholder="Search titles, content, author, translations..."
+            />
+            {filters.keyword && (
+              <div className="mt-1 text-xs text-gray-500">
+                Found {filteredArticles.length} articles containing "{filters.keyword}"
+              </div>
+            )}
+          </div>
+
           {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -1533,7 +1573,8 @@ export default function AAVMDashboard() {
                   priority: 'all',
                   relevanceMin: 0,
                   relevanceMax: 10,
-                  source: 'all'
+                  source: 'all',
+                  keyword: ''
                 });
                 setSortBy('date-desc');
               }}
@@ -1553,23 +1594,42 @@ export default function AAVMDashboard() {
   
   const ArticlePipeline = () => (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Content Pipeline</h2>
-          {lastUpdated && (
-            <p className="text-sm text-gray-500">
-              Last updated: {new Date(lastUpdated).toLocaleString()}
-            </p>
-          )}
+      <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold text-gray-900">Content Pipeline</h2>
+            {lastUpdated && (
+              <p className="text-sm text-gray-500">
+                Last updated: {new Date(lastUpdated).toLocaleString()}
+              </p>
+            )}
+          </div>
+          
+          {/* Quick Search */}
+          <div className="flex-1 max-w-md mx-4">
+            <div className="relative">
+              <input
+                type="text"
+                value={filters.keyword}
+                onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="Search articles..."
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setShowManualAdd(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Manual Add Article
+          </button>
         </div>
-        <button 
-          onClick={() => setShowManualAdd(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Manual Add Article
-        </button>
-      </div>
 
       <FilterControls />
       
