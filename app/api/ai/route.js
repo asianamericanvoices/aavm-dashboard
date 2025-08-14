@@ -1330,6 +1330,108 @@ Provide only the Korean translation:`;
         }, { status: 500 });
       }
     }
+
+  if (action === 'search_stock_photos') {
+    console.log('📸 Starting stock photo search for:', title);
+    
+    if (!title || title.trim().length === 0) {
+      return NextResponse.json({ 
+        error: 'No article title provided for stock photo search.' 
+      }, { status: 400 });
+    }
+
+    try {
+      const { topic, content } = body;
+      const stockResults = await searchStockPhotos(title, topic || 'General', content || '');
+      
+      console.log(`📸 Found ${stockResults.combined.length} stock photos`);
+      
+      return NextResponse.json({ 
+        success: true,
+        photos: stockResults.combined,
+        searchTerms: generateStockPhotoSearchTerms(title, topic || 'General', content || '')
+      });
+      
+    } catch (error) {
+      console.error('📸 Stock photo search error:', error);
+      return NextResponse.json({ 
+        error: `Stock photo search failed: ${error.message}`,
+      }, { status: 500 });
+    }
+  }
+
+  if (action === 'select_stock_photo') {
+    console.log('📸 Selecting stock photo for article:', articleId);
+    
+    const { photoUrl, photoData } = body;
+    
+    if (!photoUrl || !articleId) {
+      return NextResponse.json({ 
+        error: 'Photo URL and article ID required' 
+      }, { status: 400 });
+    }
+
+    try {
+      await updateArticleInData(articleId, { 
+        imageUrl: photoUrl,
+        imageGenerated: false,
+        imageSource: 'stock',
+        imageAttribution: photoData ? {
+          photographer: photoData.photographer,
+          photographerUrl: photoData.photographerUrl,
+          source: photoData.source,
+          photoId: photoData.id
+        } : null,
+        status: 'ready_for_publication'
+      });
+
+      console.log('📸 Stock photo selected successfully');
+      
+      return NextResponse.json({ 
+        success: true,
+        imageUrl: photoUrl,
+        attribution: photoData
+      });
+
+    } catch (error) {
+      console.error('📸 Error selecting stock photo:', error);
+      return NextResponse.json({ 
+        error: `Failed to select stock photo: ${error.message}`,
+      }, { status: 500 });
+    }
+  }
+
+  if (action === 'toggle_image_mode') {
+    console.log('🔄 Toggling image generation mode for article:', articleId);
+    
+    const { useAI } = body;
+    
+    if (!articleId) {
+      return NextResponse.json({ 
+        error: 'Article ID required' 
+      }, { status: 400 });
+    }
+
+    try {
+      await updateArticleInData(articleId, { 
+        useAIImages: useAI,
+        imageMode: useAI ? 'ai' : 'stock'
+      });
+
+      console.log(`🔄 Image mode set to: ${useAI ? 'AI' : 'Stock'}`);
+      
+      return NextResponse.json({ 
+        success: true,
+        imageMode: useAI ? 'ai' : 'stock'
+      });
+
+    } catch (error) {
+      console.error('🔄 Error toggling image mode:', error);
+      return NextResponse.json({ 
+        error: `Failed to toggle image mode: ${error.message}`,
+      }, { status: 500 });
+    }
+  }
     
     return NextResponse.json({ 
       error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article, delete_article, restore_article, permanent_delete_article' 
@@ -1350,4 +1452,162 @@ Provide only the Korean translation:`;
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
+  // Stock Photo Integration - Add before the final closing brace
+
+// Unsplash API integration
+async function searchUnsplashPhotos(query, count = 6) {
+  const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
+  
+  if (!UNSPLASH_ACCESS_KEY) {
+    console.log('⚠️ Unsplash API key not found');
+    return { success: false, error: 'No Unsplash API key' };
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      {
+        headers: {
+          'Authorization': `Client-ID ${UNSPLASH_ACCESS_KEY}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Unsplash API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    return {
+      success: true,
+      photos: data.results.map(photo => ({
+        id: photo.id,
+        url: photo.urls.regular,
+        thumb: photo.urls.thumb,
+        description: photo.description || photo.alt_description || 'Stock photo',
+        photographer: photo.user.name,
+        photographerUrl: photo.user.links.html,
+        downloadUrl: photo.links.download_location,
+        source: 'unsplash'
+      }))
+    };
+  } catch (error) {
+    console.error('Unsplash search error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Pexels API integration
+async function searchPexelsPhotos(query, count = 6) {
+  const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+  
+  if (!PEXELS_API_KEY) {
+    console.log('⚠️ Pexels API key not found');
+    return { success: false, error: 'No Pexels API key' };
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      {
+        headers: {
+          'Authorization': PEXELS_API_KEY,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Pexels API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    return {
+      success: true,
+      photos: data.photos.map(photo => ({
+        id: photo.id,
+        url: photo.src.large,
+        thumb: photo.src.medium,
+        description: photo.alt || 'Stock photo',
+        photographer: photo.photographer,
+        photographerUrl: photo.photographer_url,
+        downloadUrl: photo.src.original,
+        source: 'pexels'
+      }))
+    };
+  } catch (error) {
+    console.error('Pexels search error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Generate search terms for stock photos
+function generateStockPhotoSearchTerms(title, topic, content = '') {
+  const topicTerms = {
+    'Politics': ['government', 'capitol building', 'politics', 'democracy', 'voting'],
+    'Healthcare': ['healthcare', 'medical', 'hospital', 'health', 'medicine'],
+    'Education': ['education', 'university', 'school', 'learning', 'students'],
+    'Immigration': ['immigration', 'diversity', 'community', 'people', 'multicultural'],
+    'Economy': ['business', 'economy', 'finance', 'money', 'economic'],
+    'Culture': ['culture', 'community', 'celebration', 'diversity', 'people'],
+    'General': ['news', 'current events', 'society', 'community']
+  };
+
+  let searchTerms = topicTerms[topic] || topicTerms['General'];
+  
+  const asianAmericanTerms = [
+    'asian american',
+    'diverse community',
+    'multicultural',
+    'asian heritage',
+    'community diversity'
+  ];
+  
+  const titleLower = title.toLowerCase();
+  const contentLower = content.toLowerCase();
+  
+  if (titleLower.includes('asian') || titleLower.includes('chinese') || 
+      titleLower.includes('korean') || contentLower.includes('asian american')) {
+    searchTerms = [...asianAmericanTerms, ...searchTerms];
+  }
+
+  return searchTerms;
+}
+
+// Main stock photo search function
+async function searchStockPhotos(title, topic, content = '') {
+  const searchTerms = generateStockPhotoSearchTerms(title, topic, content);
+  const results = { unsplash: [], pexels: [], combined: [] };
+  
+  for (const term of searchTerms.slice(0, 3)) {
+    try {
+      const [unsplashResult, pexelsResult] = await Promise.all([
+        searchUnsplashPhotos(term, 3),
+        searchPexelsPhotos(term, 3)
+      ]);
+      
+      if (unsplashResult.success) {
+        results.unsplash.push(...unsplashResult.photos);
+      }
+      
+      if (pexelsResult.success) {
+        results.pexels.push(...pexelsResult.photos);
+      }
+      
+      if (results.unsplash.length >= 6 && results.pexels.length >= 6) {
+        break;
+      }
+      
+    } catch (error) {
+      console.error(`Error searching for term "${term}":`, error);
+    }
+  }
+  
+  results.combined = [
+    ...results.unsplash.slice(0, 6),
+    ...results.pexels.slice(0, 6)
+  ];
+  
+  return results;
 }
