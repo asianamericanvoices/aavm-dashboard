@@ -2116,6 +2116,7 @@ export default function AAVMDashboard() {
                                 <div>
                                   <label className="text-xs font-medium text-gray-700">Chinese Title:</label>
                                   <input
+                                    id={`chinese-title-edit-${article.id}`}
                                     type="text"
                                     defaultValue={article.translatedTitles.chinese}
                                     className="w-full p-2 border border-gray-300 rounded text-sm"
@@ -2135,14 +2136,52 @@ export default function AAVMDashboard() {
                             </div>
                             <div className="flex gap-2 mt-1">
                               <button 
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.preventDefault();
                                   const textarea = document.getElementById(`chinese-edit-${article.id}`);
-                                  if (textarea) {
-                                    handleEditTranslation(article.id, 'chinese', textarea.value.replace(/\n/g, '<br>'));
-                                    setArticles(prev => prev.map(a => 
-                                      a.id === article.id ? {...a, editingChinese: false} : a
-                                    ));
+                                  const titleInput = document.getElementById(`chinese-title-edit-${article.id}`);
+                                  
+                                  if (textarea && titleInput) {
+                                    try {
+                                      // Save the translation content
+                                      handleEditTranslation(article.id, 'chinese', textarea.value.replace(/\n/g, '<br>'));
+                                      
+                                      // Save the translated title to backend
+                                      const response = await fetch(window.location.origin + '/api/ai', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          action: 'update_content',
+                                          articleId: article.id,
+                                          updates: {
+                                            translatedTitles: {
+                                              ...article.translatedTitles,
+                                              chinese: titleInput.value
+                                            }
+                                          }
+                                        }),
+                                      });
+                              
+                                      if (response.ok) {
+                                        // Update UI with saved title
+                                        setArticles(prev => prev.map(a => 
+                                          a.id === article.id ? {
+                                            ...a, 
+                                            editingChinese: false,
+                                            translatedTitles: {
+                                              ...a.translatedTitles,
+                                              chinese: titleInput.value
+                                            }
+                                          } : a
+                                        ));
+                                        console.log('✅ Chinese title and translation saved successfully');
+                                      } else {
+                                        throw new Error('Failed to save Chinese title');
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ Error saving Chinese title:', error);
+                                      alert('Failed to save Chinese title. Please try again.');
+                                    }
                                   }
                                 }}
                                 className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
@@ -2230,6 +2269,7 @@ export default function AAVMDashboard() {
                                 <div>
                                   <label className="text-xs font-medium text-gray-700">Korean Title:</label>
                                   <input
+                                    id={`korean-title-edit-${article.id}`}
                                     type="text"
                                     defaultValue={article.translatedTitles.korean}
                                     className="w-full p-2 border border-gray-300 rounded text-sm"
@@ -2249,14 +2289,52 @@ export default function AAVMDashboard() {
                             </div>
                             <div className="flex gap-2 mt-1">
                               <button 
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.preventDefault();
                                   const textarea = document.getElementById(`korean-edit-${article.id}`);
-                                  if (textarea) {
-                                    handleEditTranslation(article.id, 'korean', textarea.value.replace(/\n/g, '<br>'));
-                                    setArticles(prev => prev.map(a => 
-                                      a.id === article.id ? {...a, editingKorean: false} : a
-                                    ));
+                                  const titleInput = document.getElementById(`korean-title-edit-${article.id}`);
+                                  
+                                  if (textarea && titleInput) {
+                                    try {
+                                      // Save the translation content
+                                      handleEditTranslation(article.id, 'korean', textarea.value.replace(/\n/g, '<br>'));
+                                      
+                                      // Save the translated title to backend
+                                      const response = await fetch(window.location.origin + '/api/ai', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          action: 'update_content',
+                                          articleId: article.id,
+                                          updates: {
+                                            translatedTitles: {
+                                              ...article.translatedTitles,
+                                              korean: titleInput.value
+                                            }
+                                          }
+                                        }),
+                                      });
+                              
+                                      if (response.ok) {
+                                        // Update UI with saved title
+                                        setArticles(prev => prev.map(a => 
+                                          a.id === article.id ? {
+                                            ...a, 
+                                            editingKorean: false,
+                                            translatedTitles: {
+                                              ...a.translatedTitles,
+                                              korean: titleInput.value
+                                            }
+                                          } : a
+                                        ));
+                                        console.log('✅ Korean title and translation saved successfully');
+                                      } else {
+                                        throw new Error('Failed to save Korean title');
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ Error saving Korean title:', error);
+                                      alert('Failed to save Korean title. Please try again.');
+                                    }
                                   }
                                 }}
                                 className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
