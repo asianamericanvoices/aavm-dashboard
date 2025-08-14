@@ -1947,8 +1947,11 @@ export default function AAVMDashboard() {
                             </div>
                             
                             {/* Preview overlay on hover */}
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center">
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <div 
+                              className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center cursor-pointer"
+                              onClick={() => handleSelectStockPhoto(article.id, photo)}
+                            >
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
                                 <div className="bg-white rounded-full p-2 shadow-lg">
                                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
