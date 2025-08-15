@@ -1,7 +1,12 @@
-// app/api/approve-user/route.js - UPDATED VERSION
+// app/api/approve-user/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+
+// ✅ FIXED: Use createClient with service role key directly
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // This bypasses RLS
+);
 
 export async function GET(request) {
   const url = new URL(request.url);
@@ -12,11 +17,12 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Missing token or role' }, { status: 400 });
   }
 
-  const supabase = createRouteHandlerClient({ cookies });
   let tokenData = null;
   
   try {
-    // First try to get token from database
+    console.log('🔍 Looking for token:', token);
+    
+    // ✅ FIXED: Now using service role client to read tokens
     const { data: dbToken, error: dbError } = await supabase
       .from('approval_tokens')
       .select('*')
@@ -24,67 +30,43 @@ export async function GET(request) {
       .eq('used', false)
       .single();
     
-    if (!dbError && dbToken) {
-      // Check if token has expired
-      if (new Date() > new Date(dbToken.expires_at)) {
-        // Mark as used/expired
-        await supabase
-          .from('approval_tokens')
-          .update({ used: true })
-          .eq('token', token);
-        
-        return getExpiredResponse();
-      }
+    console.log('🔍 Database lookup result:', { dbToken, dbError });
+    
+    if (dbError || !dbToken) {
+      console.log('❌ Token not found in database or error:', dbError);
+      return getInvalidResponse();
+    }
+    
+    // Check if token has expired
+    if (new Date() > new Date(dbToken.expires_at)) {
+      console.log('❌ Token expired');
       
-      tokenData = {
-        userId: dbToken.user_id,
-        email: dbToken.email,
-        role: dbToken.role
-      };
-      
-      // Mark token as used
+      // Mark as used/expired
       await supabase
         .from('approval_tokens')
         .update({ used: true })
         .eq('token', token);
-        
-    } else {
-      // Fallback to in-memory storage
-      console.log('Token not found in database, checking in-memory storage');
-      const approvalTokens = global.approvalTokens || new Map();
-      const memoryToken = approvalTokens.get(token);
       
-      if (!memoryToken) {
-        return getInvalidResponse();
-      }
-      
-      // Check if token has expired
-      if (Date.now() > memoryToken.expires) {
-        approvalTokens.delete(token);
-        return getExpiredResponse();
-      }
-      
-      tokenData = memoryToken;
-      approvalTokens.delete(token); // Use token
-    }
-    
-  } catch (error) {
-    console.error('Error checking approval token:', error);
-    // Fallback to in-memory storage
-    const approvalTokens = global.approvalTokens || new Map();
-    const memoryToken = approvalTokens.get(token);
-    
-    if (!memoryToken) {
-      return getInvalidResponse();
-    }
-    
-    if (Date.now() > memoryToken.expires) {
-      approvalTokens.delete(token);
       return getExpiredResponse();
     }
     
-    tokenData = memoryToken;
-    approvalTokens.delete(token);
+    tokenData = {
+      userId: dbToken.user_id,
+      email: dbToken.email,
+      role: dbToken.role
+    };
+    
+    // ✅ Mark token as used
+    await supabase
+      .from('approval_tokens')
+      .update({ used: true })
+      .eq('token', token);
+    
+    console.log('✅ Token validated and marked as used');
+        
+  } catch (error) {
+    console.error('💥 Error checking approval token:', error);
+    return getInvalidResponse();
   }
 
   if (!tokenData) {
@@ -92,13 +74,16 @@ export async function GET(request) {
   }
 
   try {
-    // Update user role
+    console.log('🔄 Updating user role to:', role, 'for user:', tokenData.userId);
+    
+    // ✅ FIXED: Update user role using service role client
     const { error } = await supabase
       .from('users')
       .update({ role: role })
       .eq('id', tokenData.userId);
 
     if (error) {
+      console.error('❌ Error updating user role:', error);
       throw error;
     }
 
@@ -108,6 +93,7 @@ export async function GET(request) {
       <html>
         <head>
           <title>User Approved - AAVM Dashboard</title>
+          <meta charset="utf-8">
           <style>
             body { 
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
@@ -209,7 +195,7 @@ export async function GET(request) {
       </html>
     `, { 
       status: 500,
-      headers: { 'Content-Type': 'text/html' }
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
   }
 }
@@ -225,7 +211,7 @@ function getInvalidResponse() {
     </html>
   `, { 
     status: 400,
-    headers: { 'Content-Type': 'text/html' }
+    headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
 }
 
@@ -240,6 +226,6 @@ function getExpiredResponse() {
     </html>
   `, { 
     status: 400,
-    headers: { 'Content-Type': 'text/html' }
+    headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
 }
