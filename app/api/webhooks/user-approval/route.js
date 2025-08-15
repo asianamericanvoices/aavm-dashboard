@@ -1,9 +1,27 @@
 // app/api/webhooks/user-approval/route.js
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { generateApprovalToken } from '../../../approve-user/route.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Global storage for approval tokens (in production, use Redis or database)
+if (!global.approvalTokens) {
+  global.approvalTokens = new Map();
+}
+
+// Generate secure approval token
+function generateApprovalToken(userId, email) {
+  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  
+  // Store token with user info and expiration (24 hours)
+  global.approvalTokens.set(token, {
+    userId,
+    email,
+    expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+  });
+  
+  return token;
+}
 
 export async function POST(request) {
   try {
