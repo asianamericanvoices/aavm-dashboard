@@ -2,18 +2,38 @@
 
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [error, setError] = useState(null);
   const supabase = createClientComponentClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Check for error params
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      switch (errorParam) {
+        case 'auth_exchange_failed':
+          setError('Google login failed. Please try again.');
+          break;
+        case 'callback_failed':
+          setError('Login callback failed. Please try again.');
+          break;
+        default:
+          setError('Login error occurred. Please try again.');
+      }
+    }
+
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        console.log('👤 Found existing user:', user.email);
+        
         // Check if user is approved
         const { data: userData } = await supabase
           .from('users')
@@ -21,35 +41,54 @@ export default function LoginPage() {
           .eq('id', user.id)
           .single();
         
-        if (userData?.role !== 'pending_approval') {
+        if (userData?.role && userData.role !== 'pending_approval' && userData.role !== 'disabled') {
+          console.log('✅ User approved, redirecting to dashboard');
           router.push('/');
         } else {
+          console.log('⏳ User pending approval');
           setUser(user);
+          setUserRole(userData?.role || 'pending_approval');
         }
       }
     };
+    
     getUser();
-  }, []);
+  }, [searchParams, supabase, router]);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError(null);
     
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+    try {
+      console.log('🚀 Starting Google OAuth...');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('❌ OAuth error:', error);
+        setError('Failed to start Google login. Please try again.');
+      } else {
+        console.log('✅ OAuth started successfully');
       }
-    });
-    
-    if (error) {
-      console.error('Error logging in:', error);
-      alert('Login failed. Please try again.');
+    } catch (err) {
+      console.error('💥 Login error:', err);
+      setError('An unexpected error occurred. Please try again.');
     }
     
     setLoading(false);
   };
 
-  if (user && user.email) {
+  // Show pending approval state if user exists but not approved
+  if (user && userRole === 'pending_approval') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md text-center">
@@ -57,9 +96,38 @@ export default function LoginPage() {
           <p className="text-gray-600 mb-4">
             Your account ({user.email}) has been created and is waiting for admin approval.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 mb-4">
             You'll receive an email once your account is approved and you can access the dashboard.
           </p>
+          
+          {/* For development - allow self-approval */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+              <p className="text-sm text-yellow-800 mb-2">
+                <strong>Development Mode:</strong> You can approve yourself for testing
+              </p>
+              <button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase
+                      .from('users')
+                      .update({ role: 'admin' })
+                      .eq('id', user.id);
+                    
+                    if (!error) {
+                      router.push('/');
+                    }
+                  } catch (err) {
+                    console.error('Self-approval failed:', err);
+                  }
+                }}
+                className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
+              >
+                Approve Myself (Dev Only)
+              </button>
+            </div>
+          )}
+          
           <button
             onClick={() => supabase.auth.signOut()}
             className="mt-4 text-blue-600 hover:text-blue-800 text-sm"
@@ -79,6 +147,12 @@ export default function LoginPage() {
           <p className="text-gray-600 mt-2">Asian American Voices Media</p>
         </div>
 
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
@@ -96,6 +170,15 @@ export default function LoginPage() {
         <p className="text-xs text-gray-500 text-center mt-4">
           New accounts require admin approval before accessing the dashboard.
         </p>
+
+        {/* Debug info in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-6 p-3 bg-gray-50 rounded text-xs">
+            <strong>Debug Info:</strong>
+            <br />Callback URL: {window.location.origin}/auth/callback
+            <br />Current URL: {window.location.href}
+          </div>
+        )}
       </div>
     </div>
   );
