@@ -63,22 +63,46 @@ export default function AuthWrapper({ children }) {
           console.error('❌ Error message:', roleError.message);
           console.error('❌ Full error:', JSON.stringify(roleError, null, 2));
           
-          // If user doesn't exist in users table, create them
+          // If user doesn't exist in users table, try to create them
           if (roleError.code === 'PGRST116') {
-            console.log('🔧 Creating user record...');
-            const { error: insertError } = await supabase
+            console.log('🔧 User not found in users table, creating...');
+            
+            // Use UPSERT to handle potential race conditions
+            const { error: upsertError } = await supabase
               .from('users')
-              .insert({
+              .upsert({
                 id: user.id,
                 email: user.email,
                 role: 'pending_approval'
+              }, {
+                onConflict: 'id',
+                ignoreDuplicates: false
               });
             
-            if (insertError) {
-              console.error('❌ Failed to create user:', insertError);
-              console.error('❌ Insert error code:', insertError.code);
-              console.error('❌ Insert error message:', insertError.message);
-              setError(`Failed to set up user account: ${insertError.message}`);
+            if (upsertError) {
+              console.error('❌ Failed to create/update user:', upsertError);
+              
+              // If it's still a duplicate error, just try to fetch the existing user
+              if (upsertError.code === '23505') {
+                console.log('🔄 Duplicate detected, fetching existing user...');
+                const { data: existingUser, error: fetchError } = await supabase
+                  .from('users')
+                  .select('*')
+                  .eq('id', user.id)
+                  .single();
+                
+                if (fetchError) {
+                  setError(`Failed to fetch user data: ${fetchError.message}`);
+                  return;
+                }
+                
+                setUser(user);
+                setUserRole(existingUser.role);
+                setLoading(false);
+                return;
+              }
+              
+              setError(`Failed to set up user account: ${upsertError.message}`);
               return;
             }
             
