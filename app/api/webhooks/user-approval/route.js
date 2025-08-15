@@ -1,26 +1,60 @@
-// app/api/webhooks/user-approval/route.js
+// app/api/webhooks/user-approval/route.js - UPDATED VERSION
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Global storage for approval tokens (in production, use Redis or database)
-if (!global.approvalTokens) {
-  global.approvalTokens = new Map();
-}
-
-// Generate secure approval token
-function generateApprovalToken(userId, email) {
+// Generate secure approval token and store in Supabase
+async function generateApprovalToken(userId, email, role) {
   const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  const expires = new Date(Date.now() + (24 * 60 * 60 * 1000)); // 24 hours
   
-  // Store token with user info and expiration (24 hours)
-  global.approvalTokens.set(token, {
-    userId,
-    email,
-    expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-  });
-  
-  return token;
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    // Store token in a table (create this table if it doesn't exist)
+    const { error } = await supabase
+      .from('approval_tokens')
+      .insert({
+        token,
+        user_id: userId,
+        email,
+        role,
+        expires_at: expires.toISOString(),
+        used: false
+      });
+    
+    if (error) {
+      console.error('Error storing approval token:', error);
+      // Fallback to in-memory if table doesn't exist
+      if (!global.approvalTokens) {
+        global.approvalTokens = new Map();
+      }
+      global.approvalTokens.set(token, {
+        userId,
+        email,
+        role,
+        expires: expires.getTime()
+      });
+    }
+    
+    return token;
+  } catch (error) {
+    console.error('Supabase error, using in-memory storage:', error);
+    // Fallback to in-memory storage
+    if (!global.approvalTokens) {
+      global.approvalTokens = new Map();
+    }
+    global.approvalTokens.set(token, {
+      userId,
+      email,
+      role,
+      expires: expires.getTime()
+    });
+    return token;
+  }
 }
 
 export async function POST(request) {
@@ -28,12 +62,10 @@ export async function POST(request) {
     const body = await request.json();
     console.log('📧 User approval webhook triggered:', JSON.stringify(body, null, 2));
 
-    // Verify this is a new user insertion
     if (body.type === 'INSERT' && body.table === 'users') {
       const newUser = body.record;
       console.log('👤 New user data:', JSON.stringify(newUser, null, 2));
       
-      // Only send email for pending approval users
       if (newUser && newUser.role === 'pending_approval') {
         console.log('✅ Sending approval email for:', newUser.email);
         await sendUserApprovalEmail(newUser);
@@ -62,7 +94,7 @@ async function sendUserApprovalEmail(user) {
       from: 'AAVM Dashboard <noreply@mail.asianamericanvoices.us>',
       to: ['approval@asianamericanvoices.us'],
       subject: '🔔 New User Approval Request - AAVM Dashboard',
-      html: generateApprovalEmailHTML(user),
+      html: await generateApprovalEmailHTML(user),
     });
 
     if (error) {
@@ -75,14 +107,13 @@ async function sendUserApprovalEmail(user) {
   }
 }
 
-function generateApprovalEmailHTML(user) {
+async function generateApprovalEmailHTML(user) {
   const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aavm-dashboard.vercel.app';
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   
-  // Generate secure approval tokens
-  const adminToken = generateApprovalToken(user.id, user.email);
-  const chineseToken = generateApprovalToken(user.id, user.email);
-  const koreanToken = generateApprovalToken(user.id, user.email);
+  // Generate secure approval tokens with database storage
+  const adminToken = await generateApprovalToken(user.id, user.email, 'admin');
+  const chineseToken = await generateApprovalToken(user.id, user.email, 'chinese_translator');
+  const koreanToken = await generateApprovalToken(user.id, user.email, 'korean_translator');
   
   const approveUrl = `${dashboardUrl}/api/approve-user`;
   
@@ -102,9 +133,7 @@ function generateApprovalEmailHTML(user) {
             .btn-admin { background: #059669; }
             .btn-chinese { background: #dc2626; }
             .btn-korean { background: #7c3aed; }
-            .btn-manual { background: #6b7280; }
             .user-info { background: white; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #2563eb; }
-            .warning { background: #fef3c7; padding: 10px; border-radius: 6px; border-left: 4px solid #f59e0b; margin: 15px 0; }
             .quick-actions { background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
         </style>
     </head>
@@ -151,38 +180,14 @@ function generateApprovalEmailHTML(user) {
                     </p>
                 </div>
                 
-                <div class="warning">
-                    <p><strong>⚠️ Action Required:</strong> This user cannot access the dashboard until you approve them.</p>
-                </div>
-                
-                <details style="margin: 20px 0;">
-                    <summary style="cursor: pointer; font-weight: bold;">🔧 Manual Approval Options (Click to expand)</summary>
-                    <div style="margin-top: 15px;">
-                        <h4>Option 1 - Supabase Dashboard:</h4>
-                        <ul>
-                            <li>Go to <a href="${supabaseUrl}" target="_blank">Supabase Dashboard</a></li>
-                            <li>Navigate to Table Editor → users table</li>
-                            <li>Find ${user.email} and change role from "pending_approval" to desired role</li>
-                        </ul>
-                        
-                        <h4>Option 2 - SQL Query:</h4>
-                        <ul>
-                            <li>Go to Supabase SQL Editor</li>
-                            <li>Run: <code>UPDATE users SET role = 'admin' WHERE email = '${user.email}';</code></li>
-                        </ul>
-                    </div>
-                </details>
-                
                 <p style="text-align: center; margin: 25px 0;">
-                    <a href="${dashboardUrl}" class="button btn-manual">🚀 Go to Dashboard</a>
+                    <a href="${dashboardUrl}" class="button" style="background: #6b7280;">🚀 Go to Dashboard</a>
                 </p>
                 
                 <p><small><strong>Available Roles:</strong><br>
                 • <strong>admin</strong> - Full dashboard access<br>
                 • <strong>chinese_translator</strong> - Chinese translation approval only<br>
-                • <strong>korean_translator</strong> - Korean translation approval only<br>
-                • <strong>pending_approval</strong> - No access (current status)<br>
-                • <strong>disabled</strong> - Blocked from access</small></p>
+                • <strong>korean_translator</strong> - Korean translation approval only</small></p>
             </div>
             
             <div class="footer">
