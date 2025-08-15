@@ -26,16 +26,22 @@ function generateApprovalToken(userId, email) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('📧 User approval webhook triggered:', body);
+    console.log('📧 User approval webhook triggered:', JSON.stringify(body, null, 2));
 
     // Verify this is a new user insertion
     if (body.type === 'INSERT' && body.table === 'users') {
       const newUser = body.record;
+      console.log('👤 New user data:', JSON.stringify(newUser, null, 2));
       
       // Only send email for pending approval users
-      if (newUser.role === 'pending_approval') {
+      if (newUser && newUser.role === 'pending_approval') {
+        console.log('✅ Sending approval email for:', newUser.email);
         await sendUserApprovalEmail(newUser);
+      } else {
+        console.log('⚠️ Not sending email - user role:', newUser?.role, 'expected: pending_approval');
       }
+    } else {
+      console.log('⚠️ Not a user insert event - type:', body.type, 'table:', body.table);
     }
 
     return NextResponse.json({ success: true });
