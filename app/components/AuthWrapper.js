@@ -17,7 +17,12 @@ export default function AuthWrapper({ children }) {
       try {
         console.log('🔍 Checking authentication...');
         
+        // Check session first
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('📋 Session check:', { session: !!session, error: sessionError });
+        
         const { data: { user }, error: userError } = await supabase.auth.getUser();
+        console.log('👤 User check:', { user: !!user, userId: user?.id, email: user?.email, error: userError });
         
         if (userError) {
           console.error('❌ Auth error:', userError);
@@ -31,17 +36,32 @@ export default function AuthWrapper({ children }) {
           return;
         }
 
-        console.log('✅ User authenticated:', user.email);
+        console.log('✅ User authenticated:', user.email, 'ID:', user.id);
+
+        // Test database connection
+        console.log('🔌 Testing database connection...');
+        const { data: testData, error: testError } = await supabase
+          .from('users')
+          .select('*')
+          .limit(1);
+        
+        console.log('🔌 Database test:', { data: testData, error: testError });
 
         // Check user's role and approval status
+        console.log('🔍 Checking user role for ID:', user.id);
         const { data: userData, error: roleError } = await supabase
           .from('users')
-          .select('role')
+          .select('*')
           .eq('id', user.id)
           .single();
 
+        console.log('👤 User data query result:', { userData, roleError });
+
         if (roleError) {
           console.error('❌ Role check error:', roleError);
+          console.error('❌ Error code:', roleError.code);
+          console.error('❌ Error message:', roleError.message);
+          console.error('❌ Full error:', JSON.stringify(roleError, null, 2));
           
           // If user doesn't exist in users table, create them
           if (roleError.code === 'PGRST116') {
@@ -56,7 +76,9 @@ export default function AuthWrapper({ children }) {
             
             if (insertError) {
               console.error('❌ Failed to create user:', insertError);
-              setError('Failed to set up user account');
+              console.error('❌ Insert error code:', insertError.code);
+              console.error('❌ Insert error message:', insertError.message);
+              setError(`Failed to set up user account: ${insertError.message}`);
               return;
             }
             
@@ -67,7 +89,7 @@ export default function AuthWrapper({ children }) {
             return;
           }
           
-          setError('Database error');
+          setError(`Database error: ${roleError.message} (Code: ${roleError.code})`);
           return;
         }
 
