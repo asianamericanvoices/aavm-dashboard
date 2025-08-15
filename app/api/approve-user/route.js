@@ -32,6 +32,23 @@ export async function GET(request) {
     });
   }
 
+  // Check if token has expired
+  if (Date.now() > tokenData.expires) {
+    approvalTokens.delete(token);
+    return new NextResponse(`
+      <html>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h1 style="color: #ef4444;">❌ Expired Link</h1>
+          <p>This approval link has expired. Please approve the user manually in Supabase.</p>
+          <a href="https://aavm-dashboard.vercel.app" style="color: #2563eb;">Go to Dashboard</a>
+        </body>
+      </html>
+    `, { 
+      status: 400,
+      headers: { 'Content-Type': 'text/html' }
+    });
+  }
+
   const { userId, email } = tokenData;
 
   try {
