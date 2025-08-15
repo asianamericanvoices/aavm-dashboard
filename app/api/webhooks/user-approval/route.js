@@ -1,30 +1,5 @@
 // app/api/webhooks/user-approval/route.js
 import { NextResponse } from 'next/server';
-
-export async function POST(request) {
-  try {
-    const body = await request.json();
-    console.log('📧 User approval webhook triggered:', body);
-
-    // Verify this is a new user insertion
-    if (body.type === 'INSERT' && body.table === 'users') {
-      const newUser = body.record;
-      
-      // Only send email for pending approval users
-      if (newUser.role === 'pending_approval') {
-        await sendUserApprovalEmail(newUser);
-      }
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('❌ Webhook error:', error);
-    return NextResponse.json({ error: 'Webhook failed' }, { status: 500 });
-  }
-}
-
-// app/api/webhooks/user-approval/route.js
-import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
