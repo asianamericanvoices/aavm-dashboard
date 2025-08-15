@@ -109,16 +109,75 @@ export async function GET(request) {
         <head>
           <title>User Approved - AAVM Dashboard</title>
           <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f8fafc; }
-            .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-            .success { color: #059669; }
-            .button { display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px; }
-            .user-info { background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+              text-align: center; 
+              padding: 50px; 
+              background: #f8fafc; 
+              margin: 0;
+            }
+            .container { 
+              max-width: 500px; 
+              margin: 0 auto; 
+              background: white; 
+              padding: 40px; 
+              border-radius: 12px; 
+              box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            }
+            .success { 
+              color: #059669; 
+              margin-bottom: 20px;
+            }
+            .checkmark {
+              width: 60px;
+              height: 60px;
+              border-radius: 50%;
+              background: #059669;
+              position: relative;
+              margin: 0 auto 20px;
+            }
+            .checkmark::after {
+              content: '';
+              width: 20px;
+              height: 35px;
+              position: absolute;
+              left: 22px;
+              top: 10px;
+              border: 3px solid white;
+              border-width: 0 3px 3px 0;
+              transform: rotate(45deg);
+            }
+            .button { 
+              display: inline-block; 
+              background: #2563eb; 
+              color: white; 
+              padding: 12px 24px; 
+              text-decoration: none; 
+              border-radius: 6px; 
+              margin-top: 20px;
+              font-weight: 500;
+              transition: background-color 0.2s;
+            }
+            .button:hover {
+              background: #1d4ed8;
+            }
+            .user-info { 
+              background: #f0f9ff; 
+              padding: 20px; 
+              border-radius: 8px; 
+              margin: 20px 0; 
+              border-left: 4px solid #0ea5e9;
+            }
+            .user-info p {
+              margin: 8px 0;
+              color: #0f172a;
+            }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1 class="success">✅ User Approved Successfully!</h1>
+            <div class="checkmark"></div>
+            <h1 class="success">User Approved Successfully!</h1>
             
             <div class="user-info">
               <p><strong>Email:</strong> ${tokenData.email}</p>
@@ -133,7 +192,7 @@ export async function GET(request) {
         </body>
       </html>
     `, { 
-      headers: { 'Content-Type': 'text/html' }
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
 
   } catch (error) {
