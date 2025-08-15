@@ -1,10 +1,15 @@
-// app/api/webhooks/user-approval/route.js - UPDATED VERSION
+// app/api/webhooks/user-approval/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Create Supabase client with service role key for server-side operations
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // This is the key you need!
+);
 
 // Generate secure approval token and store in Supabase
 async function generateApprovalToken(userId, email, role) {
@@ -12,10 +17,10 @@ async function generateApprovalToken(userId, email, role) {
   const expires = new Date(Date.now() + (24 * 60 * 60 * 1000)); // 24 hours
   
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    console.log('💾 Attempting to store token in database...');
     
-    // Store token in a table (create this table if it doesn't exist)
-    const { error } = await supabase
+    // Store token in database
+    const { data, error } = await supabase
       .from('approval_tokens')
       .insert({
         token,
@@ -24,11 +29,15 @@ async function generateApprovalToken(userId, email, role) {
         role,
         expires_at: expires.toISOString(),
         used: false
-      });
+      })
+      .select()
+      .single();
     
     if (error) {
-      console.error('Error storing approval token:', error);
-      // Fallback to in-memory if table doesn't exist
+      console.error('❌ Database storage failed:', error);
+      console.log('📝 Falling back to in-memory storage');
+      
+      // Fallback to in-memory storage
       if (!global.approvalTokens) {
         global.approvalTokens = new Map();
       }
@@ -38,11 +47,14 @@ async function generateApprovalToken(userId, email, role) {
         role,
         expires: expires.getTime()
       });
+    } else {
+      console.log('✅ Token stored in database successfully:', data);
     }
     
     return token;
   } catch (error) {
-    console.error('Supabase error, using in-memory storage:', error);
+    console.error('💥 Unexpected error storing token:', error);
+    
     // Fallback to in-memory storage
     if (!global.approvalTokens) {
       global.approvalTokens = new Map();
@@ -53,6 +65,7 @@ async function generateApprovalToken(userId, email, role) {
       role,
       expires: expires.getTime()
     });
+    
     return token;
   }
 }
