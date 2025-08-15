@@ -2,10 +2,6 @@
 import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import crypto from 'crypto';
-
-// Store approval tokens temporarily (in production, use Redis or database)
-const approvalTokens = new Map();
 
 export async function GET(request) {
   const url = new URL(request.url);
@@ -16,6 +12,9 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Missing token or role' }, { status: 400 });
   }
 
+  // Get tokens from global storage
+  const approvalTokens = global.approvalTokens || new Map();
+  
   // Verify token
   const tokenData = approvalTokens.get(token);
   if (!tokenData) {
@@ -101,32 +100,5 @@ export async function GET(request) {
       status: 500,
       headers: { 'Content-Type': 'text/html' }
     });
-  }
-}
-
-// Helper function to generate secure approval tokens
-export function generateApprovalToken(userId, email) {
-  const token = crypto.randomBytes(32).toString('hex');
-  
-  // Store token with expiration (24 hours)
-  approvalTokens.set(token, {
-    userId,
-    email,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-  });
-
-  // Clean up expired tokens
-  cleanupExpiredTokens();
-  
-  return token;
-}
-
-function cleanupExpiredTokens() {
-  const now = Date.now();
-  for (const [token, data] of approvalTokens.entries()) {
-    if (data.expiresAt < now) {
-      approvalTokens.delete(token);
-    }
   }
 }
