@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap, X, ExternalLink, Filter, RotateCcw, ChevronDown } from 'lucide-react';
+import AuthWrapper from './components/AuthWrapper';
 
-export default function AAVMDashboard() {
+function AAVMDashboardContent() {
   const [articles, setArticles] = useState([]);
   const [filteredArticles, setFilteredArticles] = useState([]);
   const [analytics, setAnalytics] = useState({
@@ -3088,6 +3089,16 @@ export default function AAVMDashboard() {
               <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded">
                 <Settings className="w-5 h-5" />
               </button>
+              <button 
+                onClick={async () => {
+                  const { createClientComponentClient } = await import('@supabase/auth-helpers-nextjs');
+                  const supabase = createClientComponentClient();
+                  await supabase.auth.signOut();
+                }}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </div>
@@ -3335,5 +3346,13 @@ export default function AAVMDashboard() {
         </div>
       )}  
     </div>
+  );
+}
+
+export default function AAVMDashboard() {
+  return (
+    <AuthWrapper>
+      <AAVMDashboardContent />
+    </AuthWrapper>
   );
 }
