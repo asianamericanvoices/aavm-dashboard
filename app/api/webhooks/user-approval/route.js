@@ -35,7 +35,7 @@ async function sendUserApprovalEmail(user) {
 
     const { data, error } = await resend.emails.send({
       from: 'AAVM Dashboard <noreply@mail.asianamericanvoices.us>',
-      to: ['digest@asianamericanvoices.us'],
+      to: ['jt.wu@asianamericanvoices.us'],
       subject: '🔔 New User Approval Request - AAVM Dashboard',
       html: generateApprovalEmailHTML(user),
     });
