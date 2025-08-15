@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+  "resend": "^4.0.1",  
   "next": "14.0.0",
   "react": "^18",
   "react-dom": "^18",
@@ -24,4 +25,5 @@
     "eslint-config-next": "14.0.0"
   }
 }
+
 
