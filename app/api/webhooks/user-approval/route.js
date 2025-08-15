@@ -1,6 +1,7 @@
 // app/api/webhooks/user-approval/route.js
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { generateApprovalToken } from '../../../approve-user/route.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -51,8 +52,15 @@ async function sendUserApprovalEmail(user) {
 }
 
 function generateApprovalEmailHTML(user) {
-  const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://your-app.vercel.app';
+  const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aavm-dashboard.vercel.app';
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  
+  // Generate secure approval tokens
+  const adminToken = generateApprovalToken(user.id, user.email);
+  const chineseToken = generateApprovalToken(user.id, user.email);
+  const koreanToken = generateApprovalToken(user.id, user.email);
+  
+  const approveUrl = `${dashboardUrl}/api/approve-user`;
   
   return `
     <!DOCTYPE html>
@@ -66,9 +74,14 @@ function generateApprovalEmailHTML(user) {
             .header { background: #2563eb; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
             .content { background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; }
             .footer { background: #1e293b; color: white; padding: 15px; border-radius: 0 0 8px 8px; font-size: 12px; }
-            .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; }
+            .button { display: inline-block; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 5px; }
+            .btn-admin { background: #059669; }
+            .btn-chinese { background: #dc2626; }
+            .btn-korean { background: #7c3aed; }
+            .btn-manual { background: #6b7280; }
             .user-info { background: white; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #2563eb; }
             .warning { background: #fef3c7; padding: 10px; border-radius: 6px; border-left: 4px solid #f59e0b; margin: 15px 0; }
+            .quick-actions { background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
         </style>
     </head>
     <body>
@@ -91,29 +104,53 @@ function generateApprovalEmailHTML(user) {
                     <p><strong>Current Status:</strong> Pending Approval</p>
                 </div>
                 
+                <div class="quick-actions">
+                    <h3>⚡ Quick Approval (One-Click)</h3>
+                    <p>Click any button below to instantly approve this user:</p>
+                    
+                    <a href="${approveUrl}?token=${adminToken}&role=admin" class="button btn-admin">
+                        🔧 Approve as Admin
+                    </a>
+                    
+                    <a href="${approveUrl}?token=${chineseToken}&role=chinese_translator" class="button btn-chinese">
+                        🇨🇳 Approve as Chinese Translator
+                    </a>
+                    
+                    <a href="${approveUrl}?token=${koreanToken}&role=korean_translator" class="button btn-korean">
+                        🇰🇷 Approve as Korean Translator
+                    </a>
+                    
+                    <p style="margin-top: 15px; font-size: 14px; color: #6b7280;">
+                        ✅ Links are secure and expire in 24 hours<br>
+                        ✅ User will be notified automatically<br>
+                        ✅ One-time use only
+                    </p>
+                </div>
+                
                 <div class="warning">
                     <p><strong>⚠️ Action Required:</strong> This user cannot access the dashboard until you approve them.</p>
                 </div>
                 
-                <h3>🔧 How to Approve:</h3>
-                <ol>
-                    <li><strong>Option 1 - Supabase Dashboard (Recommended):</strong>
+                <details style="margin: 20px 0;">
+                    <summary style="cursor: pointer; font-weight: bold;">🔧 Manual Approval Options (Click to expand)</summary>
+                    <div style="margin-top: 15px;">
+                        <h4>Option 1 - Supabase Dashboard:</h4>
                         <ul>
                             <li>Go to <a href="${supabaseUrl}" target="_blank">Supabase Dashboard</a></li>
                             <li>Navigate to Table Editor → users table</li>
-                            <li>Find ${user.email} and change role from "pending_approval" to "admin"</li>
+                            <li>Find ${user.email} and change role from "pending_approval" to desired role</li>
                         </ul>
-                    </li>
-                    <li><strong>Option 2 - SQL Query:</strong>
+                        
+                        <h4>Option 2 - SQL Query:</h4>
                         <ul>
                             <li>Go to Supabase SQL Editor</li>
                             <li>Run: <code>UPDATE users SET role = 'admin' WHERE email = '${user.email}';</code></li>
                         </ul>
-                    </li>
-                </ol>
+                    </div>
+                </details>
                 
                 <p style="text-align: center; margin: 25px 0;">
-                    <a href="${dashboardUrl}" class="button">🚀 Go to Dashboard</a>
+                    <a href="${dashboardUrl}" class="button btn-manual">🚀 Go to Dashboard</a>
                 </p>
                 
                 <p><small><strong>Available Roles:</strong><br>
