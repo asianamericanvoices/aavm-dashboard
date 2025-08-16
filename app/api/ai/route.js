@@ -131,7 +131,7 @@ async function readDashboardData() {
           contentQuality: article.content_quality || 'unknown',
           wordCount: article.word_count || 0,
           dateline: article.dateline || ''
-        });
+        };
       }));
 
       return {
