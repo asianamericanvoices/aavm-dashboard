@@ -1289,12 +1289,12 @@ Provide only the Korean translation:`;
             [language]: translation.replace(/\n/g, '<br>')
           };
           
-          // Check if both translations are now complete
-          const bothComplete = updatedTranslations.chinese && updatedTranslations.korean;
+          // Update status based on new workflow
+          const newStatus = language === 'chinese' ? 'chinese_translation_pending' : 'korean_translation_pending';
           
           await updateArticleInData(articleId, { 
             translations: updatedTranslations,
-            status: bothComplete ? 'translation_review' : 'ready_for_translation'
+            status: newStatus
           });
         }
       }
@@ -1726,9 +1726,13 @@ Provide only the Korean translation:`;
         
         const bothTranslationsApproved = otherLanguageApproved && thisLanguageWillBeApproved;
 
-        // Update status based on completion
+        // Update status based on completion with new workflow
         if (bothTranslationsApproved) {
-          approvalUpdates.status = 'ready_for_image';
+          approvalUpdates.status = 'translations_approved';
+        } else if (language === 'chinese') {
+          approvalUpdates.status = 'korean_translation_pending';
+        } else if (language === 'korean') {
+          approvalUpdates.status = 'chinese_translation_pending';
         } else {
           approvalUpdates.status = 'translation_review';
         }
