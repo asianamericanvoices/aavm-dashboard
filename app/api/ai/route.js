@@ -118,19 +118,20 @@ async function readDashboardData() {
           displayTitle: article.display_title,
           translations: translations,
           translatedTitles: translatedTitles,
-        chineseTranslationApproved: article.chinese_translation_approved || false,
-        chineseApprovedBy: article.chinese_approved_by,
-        chineseApprovedAt: article.chinese_approved_at,
-        koreanTranslationApproved: article.korean_translation_approved || false,
-        koreanApprovedBy: article.korean_approved_by,
-        koreanApprovedAt: article.korean_approved_at,
-        imageGenerated: article.image_generated || false,
-        imageUrl: article.image_url,
-        priority: article.priority,
-        relevanceScore: article.relevance_score,
-        contentQuality: article.content_quality || 'unknown',
-        wordCount: article.word_count || 0,
-        dateline: article.dateline || ''
+          chineseTranslationApproved: article.chinese_translation_approved || false,
+          chineseApprovedBy: article.chinese_approved_by,
+          chineseApprovedAt: article.chinese_approved_at,
+          koreanTranslationApproved: article.korean_translation_approved || false,
+          koreanApprovedBy: article.korean_approved_by,
+          koreanApprovedAt: article.korean_approved_at,
+          imageGenerated: article.image_generated || false,
+          imageUrl: article.image_url,
+          priority: article.priority,
+          relevanceScore: article.relevance_score,
+          contentQuality: article.content_quality || 'unknown',
+          wordCount: article.word_count || 0,
+          dateline: article.dateline || ''
+        });
       }));
 
       return {
