@@ -88,6 +88,7 @@ function AAVMDashboardContent() {
       case 'generate_title':
       case 'generate_summary':
       case 'generate_image':
+      case 'approve_for_publication':
         return userRole === 'admin';
       default:
         return false;
@@ -2909,7 +2910,7 @@ function AAVMDashboardContent() {
                     </button>
                   )}
 
-                  {article.status === 'ready_for_image' && (
+                  {article.status === 'ready_for_image' && canUserPerformAction('generate_image') && (
                     <>
                       <button 
                         onClick={() => handleSearchStockPhotos(article.id)}
@@ -2936,7 +2937,7 @@ function AAVMDashboardContent() {
                     </button>
                   )}
 
-                  {article.status === 'ready_for_publication' && (
+                  {article.status === 'ready_for_publication' && canUserPerformAction('generate_image') && (
                     <>
                       <button 
                         onClick={() => handleGenerateImagePrompt(article.id)}
