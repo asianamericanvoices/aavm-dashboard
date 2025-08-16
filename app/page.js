@@ -3357,9 +3357,96 @@ function AAVMDashboardContent() {
         {activeTab === 'deleted' && <DeletedArticles />}
         {activeTab === 'analytics' && <Analytics />}
         {activeTab === 'settings' && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
-            <p className="text-gray-600">Settings panel coming soon - configure scraping sources, translation preferences, and publishing workflows.</p>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+            
+            {/* Daily Digest Section */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">📧 Daily Digest Email</h3>
+              <p className="text-gray-600 mb-4">
+                The daily digest is automatically sent to digest@asianamericanvoices.us at 9:00 PM when articles need attention.
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/daily-digest', { method: 'POST' });
+                      const data = await response.json();
+                      
+                      if (data.success) {
+                        if (data.needsAttention) {
+                          alert(`✅ Daily digest sent successfully!\n\nArticles needing attention:\n- Pending synthesis: ${data.stats.pending_synthesis}\n- Chinese pending: ${data.stats.chinese_translation_pending}\n- Korean pending: ${data.stats.korean_translation_pending}\n- Ready for publication: ${data.stats.ready_for_publication}`);
+                        } else {
+                          alert('✅ No articles need attention right now, so no digest email was sent.');
+                        }
+                      } else {
+                        alert(`❌ Failed to send digest: ${data.error}`);
+                      }
+                    } catch (error) {
+                      alert(`❌ Error sending digest: ${error.message}`);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Send Test Digest Now
+                </button>
+                <button
+                  onClick={() => {
+                    alert(`📧 Daily Digest Schedule:\n\n• Runs automatically at 9:00 PM daily\n• Only sends when articles need attention\n• Sent to: digest@asianamericanvoices.us\n• Includes pipeline status and high-priority articles\n\nLast updated: ${lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}`);
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                >
+                  View Schedule Info
+                </button>
+              </div>
+            </div>
+
+            {/* User Management Section - Admin Only */}
+            {userRole === 'admin' && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">👥 User Management</h3>
+                <p className="text-gray-600 mb-4">
+                  New user approvals are handled via email. When someone signs up, approval@asianamericanvoices.us receives an email with one-click approval buttons.
+                </p>
+                <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                  <h4 className="font-medium text-blue-900 mb-2">Current User:</h4>
+                  <p className="text-blue-800">Email: {user?.email}</p>
+                  <p className="text-blue-800">Role: {userRole}</p>
+                  <p className="text-blue-800">Permissions: {
+                    userRole === 'admin' ? 'Full dashboard access' : 
+                    userRole === 'chinese_translator' ? 'Chinese translation approval only' :
+                    userRole === 'korean_translator' ? 'Korean translation approval only' : 'Unknown'
+                  }</p>
+                </div>
+              </div>
+            )}
+
+            {/* System Status */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 System Status</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-green-50 p-4 rounded border border-green-200">
+                  <h4 className="font-medium text-green-900">Data Source</h4>
+                  <p className="text-green-800">{supabase ? 'Supabase Database' : 'File System'}</p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                  <h4 className="font-medium text-blue-900">Last Updated</h4>
+                  <p className="text-blue-800">{lastUpdated ? new Date(lastUpdated).toLocaleString() : 'Never'}</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded border border-purple-200">
+                  <h4 className="font-medium text-purple-900">Active Articles</h4>
+                  <p className="text-purple-800">{articles.filter(a => a.status !== 'deleted' && a.status !== 'discarded').length}</p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded border border-orange-200">
+                  <h4 className="font-medium text-orange-900">Published Articles</h4>
+                  <p className="text-orange-800">{articles.filter(a => a.status === 'published').length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center py-8">
+              <p className="text-gray-500">More settings coming soon - configure scraping sources, translation preferences, and publishing workflows.</p>
+            </div>
           </div>
         )}
       </div>
