@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Eye, Edit3, Globe, CheckCircle, Clock, AlertCircle, BarChart3, Settings, Zap, X, ExternalLink, Filter, RotateCcw, ChevronDown } from 'lucide-react';
 import AuthWrapper from './components/AuthWrapper';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 function AAVMDashboardContent() {
   const [articles, setArticles] = useState([]);
@@ -13,6 +14,9 @@ function AAVMDashboardContent() {
     published_articles: 0,
     total_articles: 0
   });
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const supabase = createClientComponentClient();
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState('');
   const [activeTab, setActiveTab] = useState('pipeline');
@@ -71,6 +75,25 @@ function AAVMDashboardContent() {
     }
   };
 
+  // Helper function to check permissions
+  const canUserPerformAction = (action, language = null) => {
+    if (userRole === 'admin') return true; // Admin can do everything
+    
+    switch (action) {
+      case 'approve_chinese_translation':
+        return userRole === 'chinese_translator' || userRole === 'admin';
+      case 'approve_korean_translation':
+        return userRole === 'korean_translator' || userRole === 'admin';
+      case 'edit_content':
+      case 'generate_title':
+      case 'generate_summary':
+      case 'generate_image':
+        return userRole === 'admin';
+      default:
+        return false;
+    }
+  };
+  
   // Filter and sort functions
   const applyFiltersAndSort = (articlesList = articles) => {
     let filtered = articlesList.filter(article => {
@@ -178,6 +201,25 @@ function AAVMDashboardContent() {
       });
   }, []);
 
+  // Add user role detection
+  useEffect(() => {
+    const getUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        setUser(user);
+        setUserRole(userData?.role);
+      }
+    };
+    
+    getUserRole();
+  }, []);
+  
   // Apply filters whenever articles, filters, or sortBy changes
   useEffect(() => {
     applyFiltersAndSort();
@@ -1230,6 +1272,79 @@ function AAVMDashboardContent() {
     }
   };
 
+  // Translation Approval Handlers
+  const handleApproveChineseTranslation = async (articleId) => {
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'approve_translation',
+          articleId: articleId,
+          language: 'chinese',
+          approvedBy: user.id,
+          approverEmail: user.email
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update UI to show approval
+        setArticles(prev => prev.map(a => 
+          a.id === articleId 
+            ? { 
+                ...a, 
+                chineseTranslationApproved: true,
+                chineseApprovedBy: user.email,
+                chineseApprovedAt: new Date().toISOString(),
+                status: data.article?.status || a.status
+              }
+            : a
+        ));
+        console.log('✅ Chinese translation approved');
+      }
+    } catch (error) {
+      console.error('❌ Error approving Chinese translation:', error);
+      alert('Failed to approve translation. Please try again.');
+    }
+  };
+
+  const handleApproveKoreanTranslation = async (articleId) => {
+    try {
+      const response = await fetch(window.location.origin + '/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'approve_translation',
+          articleId: articleId,
+          language: 'korean',
+          approvedBy: user.id,
+          approverEmail: user.email
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update UI to show approval
+        setArticles(prev => prev.map(a => 
+          a.id === articleId 
+            ? { 
+                ...a, 
+                koreanTranslationApproved: true,
+                koreanApprovedBy: user.email,
+                koreanApprovedAt: new Date().toISOString(),
+                status: data.article?.status || a.status
+              }
+            : a
+        ));
+        console.log('✅ Korean translation approved');
+      }
+    } catch (error) {
+      console.error('❌ Error approving Korean translation:', error);
+      alert('Failed to approve translation. Please try again.');
+    }
+  };
+  
   // Stock Photo Handlers - Add after existing handlers
   const handleSearchStockPhotos = async (articleId) => {
     const article = articles.find(a => a.id === articleId);
@@ -2438,21 +2553,36 @@ function AAVMDashboardContent() {
                                 </button>
                               )}
                               {article.translations.chinese && article.translations.chinese !== 'Translating...' && (
-                                <button 
-                                  onClick={() => {
-                                    // Force save any edits before re-translating
-                                    if (article.editingSummary) {
-                                      const textarea = document.getElementById(`summary-edit-${article.id}`);
-                                      if (textarea) {
-                                        handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                                <>
+                                  {!article.chineseTranslationApproved && canUserPerformAction('approve_chinese_translation') && (
+                                    <button 
+                                      onClick={() => handleApproveChineseTranslation(article.id)}
+                                      className="text-green-600 hover:text-green-800 font-medium text-xs"
+                                    >
+                                      ✅ Approve Chinese
+                                    </button>
+                                  )}
+                                  {article.chineseTranslationApproved && (
+                                    <span className="text-green-600 font-medium text-xs">
+                                      ✅ Approved by {article.chineseApprovedBy}
+                                    </span>
+                                  )}
+                                  <button 
+                                    onClick={() => {
+                                      // Force save any edits before re-translating
+                                      if (article.editingSummary) {
+                                        const textarea = document.getElementById(`summary-edit-${article.id}`);
+                                        if (textarea) {
+                                          handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                                        }
                                       }
-                                    }
-                                    handleTranslateArticle(article.id, 'chinese');
-                                  }}
-                                  className="text-orange-600 hover:text-orange-800 font-medium text-xs"
-                                >
-                                  Regenerate
-                                </button>
+                                      handleTranslateArticle(article.id, 'chinese');
+                                    }}
+                                    className="text-orange-600 hover:text-orange-800 font-medium text-xs"
+                                  >
+                                    Regenerate
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -2591,21 +2721,36 @@ function AAVMDashboardContent() {
                                 </button>
                               )}
                               {article.translations.korean && article.translations.korean !== 'Translating...' && (
-                                <button 
-                                  onClick={() => {
-                                    // Force save any edits before re-translating
-                                    if (article.editingSummary) {
-                                      const textarea = document.getElementById(`summary-edit-${article.id}`);
-                                      if (textarea) {
-                                        handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                                <>
+                                  {!article.koreanTranslationApproved && canUserPerformAction('approve_korean_translation') && (
+                                    <button 
+                                      onClick={() => handleApproveKoreanTranslation(article.id)}
+                                      className="text-green-600 hover:text-green-800 font-medium text-xs"
+                                    >
+                                      ✅ Approve Korean
+                                    </button>
+                                  )}
+                                  {article.koreanTranslationApproved && (
+                                    <span className="text-green-600 font-medium text-xs">
+                                      ✅ Approved by {article.koreanApprovedBy}
+                                    </span>
+                                  )}
+                                  <button 
+                                    onClick={() => {
+                                      // Force save any edits before re-translating
+                                      if (article.editingSummary) {
+                                        const textarea = document.getElementById(`summary-edit-${article.id}`);
+                                        if (textarea) {
+                                          handleEditSummary(article.id, textarea.value.replace(/\n/g, '<br>'));
+                                        }
                                       }
-                                    }
-                                    handleTranslateArticle(article.id, 'korean');
-                                  }}
-                                  className="text-orange-600 hover:text-orange-800 font-medium text-xs"
-                                >
-                                  Regenerate
-                                </button>
+                                      handleTranslateArticle(article.id, 'korean');
+                                    }}
+                                    className="text-orange-600 hover:text-orange-800 font-medium text-xs"
+                                  >
+                                    Regenerate
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -2618,7 +2763,7 @@ function AAVMDashboardContent() {
               
               <div className="border-t pt-3 mt-3">
                 <div className="flex gap-2 flex-wrap">
-                  {article.status === 'pending_synthesis' && (
+                  {article.status === 'pending_synthesis' && canUserPerformAction('generate_title') && (
                     <>
                       <button 
                         onClick={() => handleGenerateTitle(article.id)}
@@ -2646,7 +2791,8 @@ function AAVMDashboardContent() {
                     </button>
                   )}
 
-                  {(article.status === 'pending_synthesis' && (article.aiTitle || article.displayTitle)) && (
+                  {(article.status === 'pending_synthesis' && (article.aiTitle || article.displayTitle)) && 
+                   canUserPerformAction('generate_summary') && (
                     <button 
                       onClick={() => handleGenerateSummary(article.id)}
                       className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
@@ -2672,7 +2818,9 @@ function AAVMDashboardContent() {
                     </button>
                   )}
 
-                  {article.status === 'ready_for_translation' && !article.translations.chinese && (
+                  {article.status === 'ready_for_translation' && 
+                   !article.translations.chinese && 
+                   (canUserPerformAction('approve_chinese_translation') || userRole === 'admin') && (
                     <button 
                       onClick={() => {
                         // Force save any edits before translating
@@ -2689,7 +2837,9 @@ function AAVMDashboardContent() {
                       Translate to Chinese
                     </button>
                   )}
-                  {article.status === 'ready_for_translation' && !article.translations.korean && (
+                  {article.status === 'ready_for_translation' && 
+                   !article.translations.korean && 
+                   (canUserPerformAction('approve_korean_translation') || userRole === 'admin') && (
                     <button 
                       onClick={() => {
                         // Force save any edits before translating
