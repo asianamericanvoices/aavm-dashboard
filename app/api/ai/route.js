@@ -18,7 +18,6 @@ try {
   supabase = null;
 }
 
-// Helper function to read dashboard data
 async function readDashboardData() {
   if (supabase) {
     try {
@@ -29,6 +28,23 @@ async function readDashboardData() {
         .order('scraped_date', { ascending: false });
 
       if (articlesError) throw articlesError;
+
+      // 🔍 CHINESE CONTENT DEBUG - Check raw Supabase data
+      console.log('🔍 SUPABASE DEBUG - Total articles from DB:', articles.length);
+      console.log('🔍 SUPABASE DEBUG - First article raw data:', articles[0]);
+      console.log('🔍 SUPABASE DEBUG - First article translations field:', articles[0]?.translations);
+      console.log('🔍 SUPABASE DEBUG - First article translated_titles field:', articles[0]?.translated_titles);
+      
+      // Check if ANY articles have Chinese content in the database
+      const dbArticlesWithChinese = articles.filter(a => 
+        (a.translations && a.translations.chinese) || 
+        (a.translated_titles && a.translated_titles.chinese)
+      );
+      console.log('🔍 SUPABASE DEBUG - DB articles with Chinese content:', dbArticlesWithChinese.length);
+      
+      if (dbArticlesWithChinese.length > 0) {
+        console.log('🔍 SUPABASE DEBUG - Sample DB article with Chinese:', dbArticlesWithChinese[0]);
+      }
 
       const { data: analytics, error: analyticsError } = await supabase
         .from('analytics')
