@@ -67,7 +67,17 @@ function readFromFile() {
     return JSON.parse(fileContent);
   } catch (error) {
     console.error('Error reading dashboard data for digest:', error);
-    return { articles: [] };
+    // Return empty structure if file read fails
+    return { 
+      articles: [],
+      analytics: {
+        total_articles: 0,
+        today_articles: 0,
+        pending_synthesis: 0,
+        pending_translation: 0,
+        published_articles: 0
+      }
+    };
   }
 }
 
@@ -232,9 +242,17 @@ export async function GET(request) {
   try {
     console.log('📧 Daily digest triggered');
 
+    // Check environment variables
     if (!process.env.RESEND_API_KEY) {
       console.log('⚠️ No Resend API key configured');
-      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Email service not configured - RESEND_API_KEY missing',
+        debug: {
+          hasResendKey: !!process.env.RESEND_API_KEY,
+          hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+        }
+      }, { status: 500 });
     }
 
     // Read dashboard data
