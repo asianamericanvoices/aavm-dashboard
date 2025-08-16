@@ -2960,51 +2960,53 @@ function AAVMDashboardContent() {
                       <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
                         ✓ Published
                       </span>
-                      <button 
-                        onClick={async () => {
-                          if (confirm('Are you sure you want to unpublish this article?')) {
-                            try {
-                              // Save unpublished status to backend
-                              const response = await fetch(window.location.origin + '/api/ai', {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                  action: 'update_status',
-                                  articleId: article.id,
-                                  status: 'ready_for_publication'
-                                }),
-                              });
-                        
-                              if (response.ok) {
-                                console.log('✅ Unpublished status saved to backend');
-                                
-                                // Update UI after successful save
-                                setArticles(prev => prev.map(a => 
-                                  a.id === article.id 
-                                    ? { ...a, status: 'ready_for_publication' }
-                                    : a
-                                ));
-                              } else {
-                                throw new Error('Failed to save unpublished status');
+                      {canUserPerformAction('approve_for_publication') && (
+                        <button 
+                          onClick={async () => {
+                            if (confirm('Are you sure you want to unpublish this article?')) {
+                              try {
+                                // Save unpublished status to backend
+                                const response = await fetch(window.location.origin + '/api/ai', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    action: 'update_status',
+                                    articleId: article.id,
+                                    status: 'ready_for_publication'
+                                  }),
+                                });
+                          
+                                if (response.ok) {
+                                  console.log('✅ Unpublished status saved to backend');
+                                  
+                                  // Update UI after successful save
+                                  setArticles(prev => prev.map(a => 
+                                    a.id === article.id 
+                                      ? { ...a, status: 'ready_for_publication' }
+                                      : a
+                                  ));
+                                } else {
+                                  throw new Error('Failed to save unpublished status');
+                                }
+                              } catch (error) {
+                                console.error('Error unpublishing article:', error);
+                                alert('Failed to unpublish article. Please try again.');
                               }
-                            } catch (error) {
-                              console.error('Error unpublishing article:', error);
-                              alert('Failed to unpublish article. Please try again.');
                             }
-                          }
-                        }}
-                        className="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-xs"
-                        title="Unpublish article"
-                      >
-                        Undo
-                      </button>
+                          }}
+                          className="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-xs"
+                          title="Unpublish article"
+                        >
+                          Undo
+                        </button>
+                      )}
                     </div>
                   )}
 
-                  {/* Start Over Button - Show for any article that has AI processing */}
-                  {(article.aiTitle || article.aiSummary || article.translations.chinese || article.translations.korean || article.imageUrl) && (
+                  {/* Start Over Button - Admin only */}
+                  {(article.aiTitle || article.aiSummary || article.translations.chinese || article.translations.korean || article.imageUrl) && canUserPerformAction('edit_content') && (
                     <button 
                       onClick={() => handleStartOver(article.id)}
                       className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm flex items-center gap-1"
