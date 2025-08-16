@@ -185,6 +185,24 @@ function AAVMDashboardContent() {
         console.log('🔍 Loaded dashboard data:', data);
         console.log('🔍 First article dateline:', data.articles[0]?.dateline);
         console.log('🔍 First article author:', data.articles[0]?.author);
+        
+        // 🔍 CHINESE CONTENT DEBUG
+        console.log('🔍 CHINESE DEBUG - Full first article:', data.articles[0]);
+        console.log('🔍 CHINESE DEBUG - Translations:', data.articles[0]?.translations);
+        console.log('🔍 CHINESE DEBUG - Translated titles:', data.articles[0]?.translatedTitles);
+        console.log('🔍 CHINESE DEBUG - Chinese translation:', data.articles[0]?.translations?.chinese);
+        console.log('🔍 CHINESE DEBUG - Chinese title:', data.articles[0]?.translatedTitles?.chinese);
+        
+        // Check how many articles have Chinese content
+        const articlesWithChinese = data.articles.filter(a => 
+          a.translations?.chinese || a.translatedTitles?.chinese
+        );
+        console.log('🔍 CHINESE DEBUG - Articles with Chinese content:', articlesWithChinese.length, 'out of', data.articles.length);
+        
+        if (articlesWithChinese.length > 0) {
+          console.log('🔍 CHINESE DEBUG - Sample article with Chinese:', articlesWithChinese[0]);
+        }
+        
         setArticles(data.articles || []);
         setAnalytics(data.analytics || {
           articles_scraped_today: 0,
