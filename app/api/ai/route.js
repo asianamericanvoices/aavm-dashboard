@@ -64,22 +64,60 @@ async function readDashboardData() {
       };
 
       // Convert Supabase format to dashboard format
-      const dashboardArticles = articles.map(article => ({
-        id: article.id,
-        originalTitle: article.original_title,
-        source: article.source,
-        author: article.author,
-        scrapedDate: article.scraped_date,
-        originalUrl: article.original_url,
-        status: article.status,
-        topic: article.topic,
-        fullContent: article.full_content,
-        shortDescription: article.short_description,
-        aiSummary: article.ai_summary,
-        aiTitle: article.ai_title,
-        displayTitle: article.display_title,
-        translations: article.translations || { chinese: null, korean: null },
-        translatedTitles: article.translated_titles || { chinese: null, korean: null },
+      const dashboardArticles = articles.map(article => {
+        // 🔧 FIX: Parse JSON strings properly
+        let translations = { chinese: null, korean: null };
+        let translatedTitles = { chinese: null, korean: null };
+        
+        // Handle translations field (stored as string)
+        if (article.translations) {
+          try {
+            if (typeof article.translations === 'string') {
+              translations = JSON.parse(article.translations);
+            } else {
+              translations = article.translations;
+            }
+          } catch (e) {
+            console.log('❌ Failed to parse translations for article:', article.id, article.translations);
+            translations = { chinese: null, korean: null };
+          }
+        }
+        
+        // Handle translated_titles field (corrupted with escaped chars)
+        if (article.translated_titles) {
+          try {
+            if (typeof article.translated_titles === 'string') {
+              translatedTitles = JSON.parse(article.translated_titles);
+            } else {
+              translatedTitles = article.translated_titles;
+            }
+          } catch (e) {
+            console.log('❌ Failed to parse translated_titles for article:', article.id, article.translated_titles);
+            translatedTitles = { chinese: null, korean: null };
+          }
+        }
+        
+        console.log('🔧 PARSED DATA for article', article.id, ':', {
+          translations,
+          translatedTitles
+        });
+        
+        return {
+          id: article.id,
+          originalTitle: article.original_title,
+          source: article.source,
+          author: article.author,
+          scrapedDate: article.scraped_date,
+          originalUrl: article.original_url,
+          status: article.status,
+          topic: article.topic,
+          fullContent: article.full_content,
+          shortDescription: article.short_description,
+          aiSummary: article.ai_summary,
+          aiTitle: article.ai_title,
+          displayTitle: article.display_title,
+          translations: translations,
+          translatedTitles: translatedTitles,
         chineseTranslationApproved: article.chinese_translation_approved || false,
         chineseApprovedBy: article.chinese_approved_by,
         chineseApprovedAt: article.chinese_approved_at,
