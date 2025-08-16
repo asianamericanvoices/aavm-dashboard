@@ -104,7 +104,7 @@ function AAVMDashboardContent() {
       if (filters.statusGroup !== 'all') {
         const statusGroups = {
           'unreviewed': ['pending_synthesis'],
-          'in_process': ['generating_title', 'title_review', 'generating_summary', 'summary_review', 'ready_for_translation', 'in_translation', 'translation_review', 'ready_for_image', 'generating_image', 'ready_for_publication'],
+          'in_process': ['generating_title', 'title_review', 'generating_summary', 'summary_review', 'ready_for_translation', 'in_translation', 'chinese_translation_pending', 'korean_translation_pending', 'translation_review', 'translations_approved', 'ready_for_image', 'generating_image', 'ready_for_publication'],
           'published': ['published']
         };
         if (!statusGroups[filters.statusGroup]?.includes(article.status)) return false;
@@ -315,7 +315,10 @@ function AAVMDashboardContent() {
       case 'summary_review': return 'text-purple-600 bg-purple-100';
       case 'ready_for_translation': return 'text-orange-600 bg-orange-100';
       case 'in_translation': return 'text-indigo-600 bg-indigo-100';
+      case 'chinese_translation_pending': return 'text-red-600 bg-red-100';
+      case 'korean_translation_pending': return 'text-blue-600 bg-blue-100';
       case 'translation_review': return 'text-pink-600 bg-pink-100';
+      case 'translations_approved': return 'text-green-600 bg-green-100';
       case 'ready_for_image': return 'text-teal-600 bg-teal-100';
       case 'generating_image': return 'text-cyan-600 bg-cyan-100';
       case 'ready_for_publication': return 'text-green-600 bg-green-100';
@@ -1621,7 +1624,10 @@ function AAVMDashboardContent() {
               <option value="title_review">Title Review</option>
               <option value="summary_review">Summary Review</option>
               <option value="ready_for_translation">Ready for Translation</option>
+              <option value="chinese_translation_pending">🇨🇳 Chinese Pending</option>
+              <option value="korean_translation_pending">🇰🇷 Korean Pending</option>
               <option value="translation_review">Translation Review</option>
+              <option value="translations_approved">✅ Translations Approved</option>
               <option value="ready_for_image">Ready for Image</option>
               <option value="ready_for_publication">Ready for Publication</option>
               <option value="published">Published</option>
@@ -1830,7 +1836,10 @@ function AAVMDashboardContent() {
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(article.status)}`}>
                       {getStatusIcon(article.status)}
-                      {article.status.replace('_', ' ')}
+                      {article.status === 'chinese_translation_pending' ? '🇨🇳 Chinese Pending' :
+                       article.status === 'korean_translation_pending' ? '🇰🇷 Korean Pending' :
+                       article.status === 'translations_approved' ? '✅ Translations Approved' :
+                       article.status.replace('_', ' ')}
                     </span>
                     <span className="text-xs text-gray-500">{article.source}</span>
                     <span className="text-xs text-gray-500">•</span>
@@ -2871,6 +2880,32 @@ function AAVMDashboardContent() {
                       className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
                     >
                       Approve Translations for Image
+                    </button>
+                  )}
+
+                  {article.status === 'translations_approved' && canUserPerformAction('generate_image') && (
+                    <button 
+                      onClick={async () => {
+                        // Move to ready_for_image status
+                        const response = await fetch(window.location.origin + '/api/ai', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: 'update_status',
+                            articleId: article.id,
+                            status: 'ready_for_image'
+                          }),
+                        });
+                        
+                        if (response.ok) {
+                          setArticles(prev => prev.map(a => 
+                            a.id === article.id ? { ...a, status: 'ready_for_image' } : a
+                          ));
+                        }
+                      }}
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                    >
+                      ✅ Approve for Image Generation
                     </button>
                   )}
 
