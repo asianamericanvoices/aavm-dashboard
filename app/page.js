@@ -202,7 +202,7 @@ function AAVMDashboardContent() {
       });
   }, []);
 
-  // Add user role detection
+  // Add user role detection and set default filters
   useEffect(() => {
     const getUserRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -215,6 +215,21 @@ function AAVMDashboardContent() {
         
         setUser(user);
         setUserRole(userData?.role);
+        
+        // Set default filters based on user role
+        if (userData?.role === 'chinese_translator') {
+          setFilters(prev => ({
+            ...prev,
+            status: 'chinese_translation_pending',
+            statusGroup: 'in_process'
+          }));
+        } else if (userData?.role === 'korean_translator') {
+          setFilters(prev => ({
+            ...prev,
+            status: 'korean_translation_pending',
+            statusGroup: 'in_process'
+          }));
+        }
       }
     };
     
