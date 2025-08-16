@@ -3370,20 +3370,25 @@ function AAVMDashboardContent() {
                 <button
                   onClick={async () => {
                     try {
+                      console.log('🔍 Testing daily digest...');
                       const response = await fetch('/api/daily-digest', { method: 'POST' });
                       const data = await response.json();
                       
+                      console.log('📧 Digest response:', data);
+                      
                       if (data.success) {
                         if (data.needsAttention) {
-                          alert(`✅ Daily digest sent successfully!\n\nArticles needing attention:\n- Pending synthesis: ${data.stats.pending_synthesis}\n- Chinese pending: ${data.stats.chinese_translation_pending}\n- Korean pending: ${data.stats.korean_translation_pending}\n- Ready for publication: ${data.stats.ready_for_publication}`);
+                          alert(`✅ Daily digest sent successfully!\n\nEmail ID: ${data.emailId}\n\nArticles needing attention:\n- Pending synthesis: ${data.stats.pending_synthesis}\n- Chinese pending: ${data.stats.chinese_translation_pending}\n- Korean pending: ${data.stats.korean_translation_pending}\n- Ready for publication: ${data.stats.ready_for_publication}`);
                         } else {
                           alert('✅ No articles need attention right now, so no digest email was sent.');
                         }
                       } else {
-                        alert(`❌ Failed to send digest: ${data.error}`);
+                        console.error('❌ Digest failed:', data);
+                        alert(`❌ Failed to send digest: ${data.error}\n\nDebug info: ${JSON.stringify(data.debug || {}, null, 2)}`);
                       }
                     } catch (error) {
-                      alert(`❌ Error sending digest: ${error.message}`);
+                      console.error('❌ Digest request failed:', error);
+                      alert(`❌ Error sending digest: ${error.message}\n\nCheck console for details.`);
                     }
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
