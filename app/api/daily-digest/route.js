@@ -273,7 +273,7 @@ export async function GET(request) {
     const emailHTML = generateDigestHTML(stats, activeArticles);
     
     const { data, error } = await resend.emails.send({
-      from: 'AAVM Dashboard <digest@asianamericanvoices.us>',
+      from: 'AAVM Dashboard <digest@mail.asianamericanvoices.us>',
       to: ['digest@asianamericanvoices.us'],
       subject: `📊 AAVM Daily Digest - ${stats.pending_synthesis + stats.title_review + stats.summary_review + stats.chinese_translation_pending + stats.korean_translation_pending + stats.translations_approved + stats.ready_for_publication} articles need attention`,
       html: emailHTML,
