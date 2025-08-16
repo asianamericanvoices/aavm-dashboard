@@ -64,6 +64,12 @@ async function readDashboardData() {
         displayTitle: article.display_title,
         translations: article.translations || { chinese: null, korean: null },
         translatedTitles: article.translated_titles || { chinese: null, korean: null },
+        chineseTranslationApproved: article.chinese_translation_approved || false,
+        chineseApprovedBy: article.chinese_approved_by,
+        chineseApprovedAt: article.chinese_approved_at,
+        koreanTranslationApproved: article.korean_translation_approved || false,
+        koreanApprovedBy: article.korean_approved_by,
+        koreanApprovedAt: article.korean_approved_at,
         imageGenerated: article.image_generated || false,
         imageUrl: article.image_url,
         priority: article.priority,
@@ -156,6 +162,17 @@ async function updateArticleInData(articleId, updates) {
       // Add support for discard/delete timestamps
       if (updates.deleted_at !== undefined) supabaseUpdates.deleted_at = updates.deleted_at;
       if (updates.discarded_at !== undefined) supabaseUpdates.discarded_at = updates.discarded_at;
+
+      // Add support for translation approval fields
+      if (updates.chineseTranslationApproved !== undefined) supabaseUpdates.chinese_translation_approved = updates.chineseTranslationApproved;
+      if (updates.chineseApprovedBy !== undefined) supabaseUpdates.chinese_approved_by = updates.chineseApprovedBy;
+      if (updates.chineseApprovedAt !== undefined) supabaseUpdates.chinese_approved_at = updates.chineseApprovedAt;
+      if (updates.koreanTranslationApproved !== undefined) supabaseUpdates.korean_translation_approved = updates.koreanTranslationApproved;
+      if (updates.koreanApprovedBy !== undefined) supabaseUpdates.korean_approved_by = updates.koreanApprovedBy;
+      if (updates.koreanApprovedAt !== undefined) supabaseUpdates.korean_approved_at = updates.koreanApprovedAt;
+
+      // Always update the updated_at timestamp
+      supabaseUpdates.updated_at = new Date().toISOString();
       
       // Always update the updated_at timestamp
       supabaseUpdates.updated_at = new Date().toISOString();
@@ -1669,8 +1686,79 @@ Provide only the Korean translation:`;
     }
   }
     
+    if (action === 'approve_translation') {
+      console.log('✅ TRANSLATION APPROVAL REQUEST:', { action, articleId, language, body });
+      
+      const { language, approvedBy, approverEmail } = body;
+      
+      if (!articleId || !language || !approvedBy) {
+        return NextResponse.json({ 
+          error: 'Article ID, language, and approver required for translation approval' 
+        }, { status: 400 });
+      }
+
+      if (!['chinese', 'korean'].includes(language)) {
+        return NextResponse.json({ 
+          error: 'Invalid language. Must be chinese or korean' 
+        }, { status: 400 });
+      }
+
+      try {
+        // Prepare approval updates
+        const approvalUpdates = {
+          [`${language}TranslationApproved`]: true,
+          [`${language}ApprovedBy`]: approverEmail,
+          [`${language}ApprovedAt`]: new Date().toISOString()
+        };
+
+        // Check if this completes all translation approvals
+        const currentData = await readDashboardData();
+        const article = currentData.articles.find(a => a.id === articleId);
+        
+        if (!article) {
+          return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+        }
+
+        // Determine if both translations are now approved
+        const otherLanguage = language === 'chinese' ? 'korean' : 'chinese';
+        const otherLanguageApproved = article[`${otherLanguage}TranslationApproved`] || false;
+        const thisLanguageWillBeApproved = true;
+        
+        const bothTranslationsApproved = otherLanguageApproved && thisLanguageWillBeApproved;
+
+        // Update status based on completion
+        if (bothTranslationsApproved) {
+          approvalUpdates.status = 'ready_for_image';
+        } else {
+          approvalUpdates.status = 'translation_review';
+        }
+
+        // Save to backend
+        const updatedArticle = await updateArticleInData(articleId, approvalUpdates);
+        
+        console.log(`✅ ${language.charAt(0).toUpperCase() + language.slice(1)} translation approved by ${approverEmail}`);
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: `${language.charAt(0).toUpperCase() + language.slice(1)} translation approved successfully`,
+          articleId: articleId,
+          language: language,
+          approvedBy: approverEmail,
+          bothTranslationsApproved: bothTranslationsApproved,
+          article: updatedArticle
+        });
+
+      } catch (error) {
+        console.error('❌ Error approving translation:', error);
+        return NextResponse.json({ 
+          error: 'Failed to approve translation',
+          details: error.message 
+        }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ 
-      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article, delete_article, restore_article, permanent_delete_article' 
+      error: 'Invalid action. Supported actions: generate_title, translate_title, summarize, translate, generate_image_prompt, generate_image, update_status, update_content, start_over, add_manual_article, delete_article, restore_article, permanent_delete_article, approve_translation' 
     }, { status: 400 });
 
   } catch (error) {
